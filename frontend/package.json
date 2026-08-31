@@ -1,0 +1,25 @@
+{
+  "name": "skillcraft-microjobs-frontend",
+  "version": "1.0.0",
+  "description": "SkillCraft Micro-Jobs Frontend - React/Vite",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext .jsx"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "axios": "^1.4.0",
+    "react-router-dom": "^6.11.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "vite": "^4.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

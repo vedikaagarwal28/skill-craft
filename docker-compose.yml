@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: skillcraft-postgres
+    environment:
+      POSTGRES_DB: skillcraft
+      POSTGRES_USER: skillcraft_user
+      POSTGRES_PASSWORD: skillcraft_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./database/02_03_views_triggers_procedures.sql:/docker-entrypoint-initdb.d/02_views_triggers_procedures.sql
+      - ./database/04_roles_permissions.sql:/docker-entrypoint-initdb.d/04_roles_permissions.sql
+      - ./database/05_seed_data.sql:/docker-entrypoint-initdb.d/05_seed_data.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillcraft_user -d skillcraft"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - skillcraft-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: skillcraft-backend
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: skillcraft
+      DB_USER: skillcraft_user
+      DB_PASSWORD: skillcraft_password
+      JWT_SECRET: ${JWT_SECRET:-your_super_secret_jwt_key_change_in_production}
+      PORT: 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+    command: npm run dev
+    networks:
+      - skillcraft-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: skillcraft-frontend
+    environment:
+      VITE_API_URL: http://localhost:5000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+    command: npm run dev
+    networks:
+      - skillcraft-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  skillcraft-network:
+    driver: bridge

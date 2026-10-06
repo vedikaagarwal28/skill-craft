@@ -57,10 +57,10 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 
 // Artisans routes
-app.use('/api', artisansRoutes);
+app.use('/api/artisans', artisansRoutes);
 
 // Gigs routes
-app.use('/api', gigsRoutes);
+app.use('/api/gigs', gigsRoutes);
 
 // Applications routes
 app.use('/api', applicationsRoutes);

@@ -13,6 +13,7 @@ import {
   listGigs,
   getGigDetail,
   cancelGig,
+  getMyGigs,
 } from '../controllers/gigs.controller.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
@@ -21,7 +22,8 @@ const router = express.Router();
 
 // Public endpoints
 router.get('/', listGigs);
-router.get('/:id', authenticateToken, getGigDetail); // Auth optional for detail
+router.get('/mine', authenticateToken, requireRole('employer', 'admin'), getMyGigs);
+router.get('/:id', (req, res, next) => req.headers.authorization ? authenticateToken(req, res, next) : next(), getGigDetail);
 
 // Protected endpoints
 router.post('/', authenticateToken, requireRole('employer', 'admin'), postGig);

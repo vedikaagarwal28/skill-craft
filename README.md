@@ -1,5 +1,35 @@
 # SkillCraft Micro-Jobs
 
+## Marketplace v2 proposal
+
+This branch turns the original course prototype into a usable local-work marketplace while keeping its six-table PostgreSQL model and transaction-safe bid acceptance. The frontend now has a public landing page, searchable jobs and artisan profiles, role-specific workspaces, job posting, bidding, bid decisions, contracts, payment tracking, and verified reviews. Contact numbers are shared through a contract after a bid is accepted; public artisan profiles do not expose them.
+
+The new interface is intentionally quiet and practical: clear briefs, visible prices, straightforward next steps, and a work record grounded in settled contracts. [See the home preview](docs/marketplace-v2-home.png), [artisan directory](docs/marketplace-v2-artisans.png), and [artisan workspace](docs/marketplace-v2-dashboard.png).
+
+### Try the full app without Docker
+
+Open two terminals from the repository root:
+
+```bash
+cd backend
+npm install
+npm run dev:preview
+```
+
+```bash
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1 --port 5174
+```
+
+Open `http://127.0.0.1:5174`. The preview backend starts a local PostgreSQL-compatible database on port 5433, loads the project schema and seed data, and serves the API on port 5000. Its data stays in the ignored `backend/.test-db/marketplace-v2` directory. The normal Docker Compose setup below still uses PostgreSQL.
+
+Sample accounts use password `password123`: artisan `lakshmi@skillcraft.local`, employer `ramesh@constructionco.in`. New accounts can also be created through the app. A separate browser-only demo is available with `VITE_DEMO_MODE=true` for visual review.
+
+For an existing PostgreSQL database, apply `database/06_proposal_note.sql`, `database/08_unique_contracts.sql`, and `database/02_03_views_triggers_procedures.sql` before running the new frontend. The contract migration preserves existing rows; if an older seed has duplicate contracts for a gig, review those duplicates before adding the unique constraint manually. Recompute existing scores with `SELECT recalculate_trust_score(Artisan_ID) FROM ARTISANS;`.
+
+Run `npm test` in `backend` for self-contained schema and API workflow checks. Run `npm run test:e2e` in `frontend` for the artisan-to-employer browser journey; install a Playwright Chromium browser or set `PLAYWRIGHT_BROWSER_PATH` to an existing Chromium/Edge binary. The earlier PostgreSQL/Jest suite remains available as `npm run test:postgres`.
+
 A hyper-local, database-driven platform connecting rural micro-artisans — handloom weavers, technicians, daily-wage workers — directly to urban gig employers, removing middlemen who currently take 30–50% commission on their work.
 
 Built for **BCSE302P – Database Systems Lab, Societal Digital Innovation Project** (Tracks T9 – Education & Human Skills, T12 – Livelihood & Social Entrepreneurship).
@@ -229,4 +259,4 @@ Faculty Guide: Siva Sankari | Academic Year: 2026–2027
 
 ## License
 
-MIT 
+MIT

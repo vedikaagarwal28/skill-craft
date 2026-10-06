@@ -30,7 +30,7 @@ SELECT
 FROM ARTISANS a
 JOIN USERS u ON a.User_ID = u.User_ID
 LEFT JOIN COMPLETION_CONTRACTS cc ON cc.Selected_Artisan_ID = a.Artisan_ID
-LEFT JOIN RATINGS_REVIEWS rr ON rr.Contract_ID = cc.Contract_ID
+LEFT JOIN RATINGS_REVIEWS rr ON rr.Contract_ID = cc.Contract_ID AND cc.Payment_Status = 'paid'
 GROUP BY a.Artisan_ID, u.Full_Name, a.Skill_Category, a.Base_Location, a.Trust_Score
 ORDER BY a.Trust_Score DESC, COUNT(rr.Review_ID) DESC;
 
@@ -102,7 +102,9 @@ COMMENT ON VIEW Open_Gigs_View IS 'Live gig board: shows open gigs with bid coun
 -- STORED PROCEDURE: recalculate_trust_score(artisan_id)
 -- ============================================================================
 -- Recomputes an artisan's trust score from their review history.
--- Formula: weighted average of all rating stars (treating missing reviews as 0).
+-- Formula: paid-contract reviews with a modest prior, so one review cannot
+-- immediately produce a perfect score. Employer payment delays never lower an
+-- artisan's score.
 -- Called by: trigger after each new review insertion.
 -- ============================================================================
 
@@ -111,36 +113,22 @@ CREATE OR REPLACE FUNCTION recalculate_trust_score(
 )
 RETURNS VOID AS $$
 DECLARE
-  v_avg_rating NUMERIC(3, 2);
-  v_total_contracts INTEGER;
-  v_completed_on_time INTEGER;
+  v_review_count INTEGER;
+  v_rating_sum NUMERIC;
   v_trust_score NUMERIC(3, 2);
 BEGIN
-  -- Calculate average rating from reviews for completed contracts
+  -- Count only feedback tied to a settled, verified contract.
   SELECT
-    COALESCE(AVG(rr.Rating_Stars), 0.0)::NUMERIC(3, 2) INTO v_avg_rating
+    COUNT(rr.Review_ID), COALESCE(SUM(rr.Rating_Stars), 0)
+    INTO v_review_count, v_rating_sum
   FROM RATINGS_REVIEWS rr
   JOIN COMPLETION_CONTRACTS cc ON rr.Contract_ID = cc.Contract_ID
-  WHERE cc.Selected_Artisan_ID = p_artisan_id;
+  WHERE cc.Selected_Artisan_ID = p_artisan_id
+    AND cc.Payment_Status = 'paid';
 
-  -- Count total contracts for this artisan
-  SELECT COUNT(*) INTO v_total_contracts
-  FROM COMPLETION_CONTRACTS
-  WHERE Selected_Artisan_ID = p_artisan_id;
-
-  -- Count paid contracts (simple proxy for "on-time payment received")
-  SELECT COUNT(*) INTO v_completed_on_time
-  FROM COMPLETION_CONTRACTS
-  WHERE Selected_Artisan_ID = p_artisan_id
-    AND Payment_Status = 'paid';
-
-  -- Compute trust score as:
-  -- 70% weight on average rating + 30% weight on payment completion ratio
-  IF v_total_contracts > 0 THEN
-    v_trust_score := (
-      (v_avg_rating * 0.7) + 
-      ((v_completed_on_time::NUMERIC / v_total_contracts) * 5.0 * 0.3)
-    )::NUMERIC(3, 2);
+  IF v_review_count > 0 THEN
+    -- Three virtual 3.5-star reviews steady the score for new artisans.
+    v_trust_score := ((v_rating_sum + 10.5) / (v_review_count + 3))::NUMERIC(3, 2);
   ELSE
     v_trust_score := 0.00;
   END IF;
@@ -159,7 +147,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION recalculate_trust_score(INTEGER) IS 
-'Recomputes artisan trust score from review history. Formula: 70% avg rating + 30% on-time payment ratio. Automatically called after each review insertion.';
+'Recomputes artisan trust score from paid-contract reviews with a modest prior. Employer payment timing does not penalize artisans.';
 
 -- ============================================================================
 -- TRIGGER: after_review_insert_recalc_trust_score

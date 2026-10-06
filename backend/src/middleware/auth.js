@@ -42,9 +42,9 @@ export const authenticateToken = (req, res, next) => {
  */
 export const generateToken = (user) => {
   const payload = {
-    userId: user.User_ID,
-    fullName: user.Full_Name,
-    role: user.Role,
+    userId: user.user_id,
+    fullName: user.full_name,
+    role: user.role,
   };
 
   const token = jwt.sign(payload, JWT_SECRET, {

@@ -69,15 +69,15 @@ npm test
 
 ### Test Credentials (from seed data)
 **Artisan:**
-- Email: `ramesh@example.com`
+- Email: `lakshmi@skillcraft.local`
 - Password: `password123`
 
 **Employer:**
-- Email: `priya@example.com`
+- Email: `ramesh@constructionco.in`
 - Password: `password123`
 
 **Admin:**
-- Email: `admin@example.com`
+- Email: `admin@skillcraft.local`
 - Password: `password123`
 
 ---

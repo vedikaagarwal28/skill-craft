@@ -105,7 +105,7 @@ SkillCraft Micro-Jobs achieves **TRL 4–5** (Technology Validated in Lab/Releva
 
 **Evidence**:
 - ✓ PostgreSQL schema (01_schema.sql) created and validated locally
-- ✓ Seed data (05_seed_data.sql) with 15 artisans, 10 employers, 20 gigs, 30 bids, 12 contracts inserted successfully
+- ✓ Seed data (05_seed_data.sql) with 15 artisans, 10 employers, 20 gigs, 30 bids, 8 unique contracts inserted successfully
 - ✓ Views (Top_Rated_Artisans_View, Skill_Category_Earnings_View, Open_Gigs_View) queried and return correct results
 - ✓ Triggers tested: gig auto-close on bid acceptance, bid auto-rejection, contract auto-creation all work
 - ✓ Stored procedure (recalculate_trust_score) tested: trust score recalculates after review insertion

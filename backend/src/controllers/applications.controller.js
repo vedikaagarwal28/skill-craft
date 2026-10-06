@@ -17,7 +17,7 @@ import { query, getClient } from '../db.js';
 export const submitBid = async (req, res) => {
   try {
     const { gigId } = req.params;
-    const { bidAmount } = req.body;
+    const { bidAmount, note } = req.body;
 
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
@@ -28,8 +28,11 @@ export const submitBid = async (req, res) => {
     }
 
     // Validation
-    if (!bidAmount || bidAmount <= 0) {
+    if (!Number.isFinite(Number(bidAmount)) || Number(bidAmount) <= 0) {
       return res.status(400).json({ error: 'bidAmount must be > 0' });
+    }
+    if (note && String(note).length > 500) {
+      return res.status(400).json({ error: 'note must be 500 characters or fewer' });
     }
 
     // Get artisan ID from User_ID
@@ -42,7 +45,7 @@ export const submitBid = async (req, res) => {
       return res.status(404).json({ error: 'Artisan profile not found' });
     }
 
-    const artisanId = artisanResult.rows[0].Artisan_ID;
+    const artisanId = artisanResult.rows[0].artisan_id;
 
     // Check if gig exists and is open
     const gigResult = await query(
@@ -54,7 +57,7 @@ export const submitBid = async (req, res) => {
       return res.status(404).json({ error: 'Gig not found' });
     }
 
-    if (gigResult.rows[0].Status !== 'open') {
+    if (gigResult.rows[0].status !== 'open') {
       return res.status(400).json({ error: 'This gig is not open for new bids' });
     }
 
@@ -70,10 +73,10 @@ export const submitBid = async (req, res) => {
 
     // Submit bid
     const result = await query(
-      `INSERT INTO GIG_APPLICATIONS (Gig_ID, Artisan_ID, Bid_Amount, Application_Status)
-       VALUES ($1, $2, $3, 'pending')
+      `INSERT INTO GIG_APPLICATIONS (Gig_ID, Artisan_ID, Bid_Amount, Proposal_Note, Application_Status)
+       VALUES ($1, $2, $3, $4, 'pending')
        RETURNING *`,
-      [gigId, artisanId, bidAmount]
+      [gigId, artisanId, Number(bidAmount), note?.trim() || null]
     );
 
     res.status(201).json({
@@ -111,26 +114,27 @@ export const getMyBids = async (req, res) => {
       return res.status(404).json({ error: 'Artisan profile not found' });
     }
 
-    const artisanId = artisanResult.rows[0].Artisan_ID;
+    const artisanId = artisanResult.rows[0].artisan_id;
 
     // Get all bids for this artisan
     const result = await query(
       `SELECT
-        ga.Application_ID,
-        ga.Gig_ID,
-        ga.Bid_Amount,
-        ga.Application_Status,
-        ga.Applied_At,
-        gp.Skill_Required,
-        gp.Address,
-        gp.Budget,
-        gp.Status as gig_status,
-        u.Full_Name as employer_name
+        ga.application_id,
+        ga.gig_id,
+        ga.bid_amount,
+        ga.proposal_note,
+        ga.application_status,
+        ga.applied_at,
+        gp.skill_required,
+        gp.address,
+        gp.budget,
+        gp.status as gig_status,
+        u.full_name as employer_name
        FROM GIG_APPLICATIONS ga
-       JOIN GIG_POSTINGS gp ON ga.Gig_ID = gp.Gig_ID
-       JOIN USERS u ON gp.Employer_User_ID = u.User_ID
-       WHERE ga.Artisan_ID = $1
-       ORDER BY ga.Applied_At DESC`,
+       JOIN GIG_POSTINGS gp ON ga.gig_id = gp.gig_id
+       JOIN USERS u ON gp.employer_user_id = u.user_id
+       WHERE ga.artisan_id = $1
+       ORDER BY ga.applied_at DESC`,
       [artisanId]
     );
 
@@ -179,10 +183,10 @@ export const acceptBid = async (req, res) => {
 
       // Get application details
       const appResult = await client.query(
-        `SELECT ga.*, gp.Employer_User_ID, gp.Status as gig_status
+        `SELECT ga.*, gp.employer_user_id, gp.status as gig_status
          FROM GIG_APPLICATIONS ga
-         JOIN GIG_POSTINGS gp ON ga.Gig_ID = gp.Gig_ID
-         WHERE ga.Application_ID = $1`,
+         JOIN GIG_POSTINGS gp ON ga.gig_id = gp.gig_id
+         WHERE ga.application_id = $1`,
         [applicationId]
       );
 
@@ -194,7 +198,7 @@ export const acceptBid = async (req, res) => {
       const app = appResult.rows[0];
 
       // Check ownership
-      if (req.user.role !== 'admin' && req.user.userId !== app.Employer_User_ID) {
+      if (req.user.role !== 'admin' && req.user.userId !== app.employer_user_id) {
         await client.query('ROLLBACK');
         return res.status(403).json({ error: 'Can only accept bids on own gigs' });
       }
@@ -203,7 +207,7 @@ export const acceptBid = async (req, res) => {
       // SELECT ... FOR UPDATE blocks until lock is acquired
       const lockResult = await client.query(
         'SELECT Gig_ID, Status FROM GIG_POSTINGS WHERE Gig_ID = $1 FOR UPDATE',
-        [app.Gig_ID]
+        [app.gig_id]
       );
 
       if (lockResult.rows.length === 0) {
@@ -214,19 +218,19 @@ export const acceptBid = async (req, res) => {
       const lockedGig = lockResult.rows[0];
 
       // Check if gig is still open (another accept might have closed it)
-      if (lockedGig.Status !== 'open') {
+      if (lockedGig.status !== 'open') {
         await client.query('ROLLBACK');
         return res.status(409).json({
           error: 'Gig is no longer open. Another bid may have been accepted.',
-          details: `Current status: ${lockedGig.Status}`,
+          details: `Current status: ${lockedGig.status}`,
         });
       }
 
       // Check if application is still pending
-      if (app.Application_Status !== 'pending') {
+      if (app.application_status !== 'pending') {
         await client.query('ROLLBACK');
         return res.status(409).json({
-          error: `Application is not pending (status: ${app.Application_Status})`,
+          error: `Application is not pending (status: ${app.application_status})`,
         });
       }
 
@@ -289,10 +293,10 @@ export const rejectBid = async (req, res) => {
 
     // Get application and check ownership
     const appResult = await query(
-      `SELECT ga.*, gp.Employer_User_ID
+      `SELECT ga.*, gp.employer_user_id
        FROM GIG_APPLICATIONS ga
-       JOIN GIG_POSTINGS gp ON ga.Gig_ID = gp.Gig_ID
-       WHERE ga.Application_ID = $1`,
+       JOIN GIG_POSTINGS gp ON ga.gig_id = gp.gig_id
+       WHERE ga.application_id = $1`,
       [applicationId]
     );
 
@@ -302,7 +306,7 @@ export const rejectBid = async (req, res) => {
 
     const app = appResult.rows[0];
 
-    if (req.user.role !== 'admin' && req.user.userId !== app.Employer_User_ID) {
+    if (req.user.role !== 'admin' && req.user.userId !== app.employer_user_id) {
       return res.status(403).json({ error: 'Can only reject bids on own gigs' });
     }
 

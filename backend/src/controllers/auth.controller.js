@@ -7,7 +7,7 @@
 // ============================================================================
 
 import bcrypt from 'bcryptjs';
-import { query } from '../db.js';
+import { query, getClient } from '../db.js';
 import { generateToken } from '../middleware/auth.js';
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
@@ -17,19 +17,20 @@ const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '10');
  * POST /api/auth/register
  */
 export const register = async (req, res) => {
+  let client;
   try {
     const { fullName, phone, email, password, role } = req.body;
 
     // Validate input
-    if (!fullName || !phone || !password || !role) {
+    if (!fullName || !phone || !email || !password || !role) {
       return res.status(400).json({
-        error: 'fullName, phone, password, and role are required',
+        error: 'Full name, phone, email, password, and role are required',
       });
     }
 
-    if (!['artisan', 'employer', 'admin'].includes(role)) {
+    if (!['artisan', 'employer'].includes(role)) {
       return res.status(400).json({
-        error: 'role must be one of: artisan, employer, admin',
+        error: 'Choose artisan or employer',
       });
     }
 
@@ -39,24 +40,32 @@ export const register = async (req, res) => {
       });
     }
 
-    // Check if user already exists (by phone)
-    const existingUser = await query(
-      'SELECT User_ID FROM USERS WHERE Phone = $1',
-      [phone]
+    if (role === 'artisan' && (!req.body.skillCategory || !req.body.baseLocation || Number(req.body.hourlyRate) <= 0)) {
+      return res.status(400).json({ error: 'Artisans need a skill, location, and positive hourly rate' });
+    }
+
+    // Check both unique identifiers before creating the account.
+    client = await getClient();
+    await client.query('BEGIN');
+
+    const existingUser = await client.query(
+      'SELECT User_ID FROM USERS WHERE Phone = $1 OR LOWER(Email) = LOWER($2)',
+      [phone, email]
     );
 
     if (existingUser.rows.length > 0) {
-      return res.status(409).json({ error: 'User with this phone already exists' });
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'An account with this phone or email already exists' });
     }
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     // Insert user
-    const result = await query(
+    const result = await client.query(
       `INSERT INTO USERS (Full_Name, Phone, Email, Password_Hash, Role) 
        VALUES ($1, $2, $3, $4, $5) 
-       RETURNING User_ID, Full_Name, Phone, Role, Created_At`,
+       RETURNING User_ID, Full_Name, Phone, Email, Role, Created_At`,
       [fullName, phone, email || null, passwordHash, role]
     );
 
@@ -66,25 +75,14 @@ export const register = async (req, res) => {
     if (role === 'artisan') {
       const { skillCategory, baseLocation, regionLanguage, hourlyRate } = req.body;
 
-      if (!skillCategory || !baseLocation || !hourlyRate) {
-        // Rollback user if artisan profile incomplete
-        await query('DELETE FROM USERS WHERE User_ID = $1', [user.User_ID]);
-        return res.status(400).json({
-          error: 'For artisans: skillCategory, baseLocation, and hourlyRate are required',
-        });
-      }
-
-      if (hourlyRate <= 0) {
-        await query('DELETE FROM USERS WHERE User_ID = $1', [user.User_ID]);
-        return res.status(400).json({ error: 'hourlyRate must be > 0' });
-      }
-
-      await query(
+      await client.query(
         `INSERT INTO ARTISANS (User_ID, Skill_Category, Base_Location, Region_Language, Hourly_Rate)
          VALUES ($1, $2, $3, $4, $5)`,
-        [user.User_ID, skillCategory, baseLocation, regionLanguage || null, hourlyRate]
+        [user.user_id, skillCategory, baseLocation, regionLanguage || null, hourlyRate]
       );
     }
+
+    await client.query('COMMIT');
 
     // Generate JWT
     const token = generateToken(user);
@@ -93,15 +91,19 @@ export const register = async (req, res) => {
       message: 'User registered successfully',
       token,
       user: {
-        userId: user.User_ID,
-        fullName: user.Full_Name,
-        phone: user.Phone,
-        role: user.Role,
+        userId: user.user_id,
+        fullName: user.full_name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
       },
     });
   } catch (err) {
+    if (client) await client.query('ROLLBACK');
     console.error('Registration error:', err);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(err.code === '23505' ? 409 : 500).json({ error: err.code === '23505' ? 'An account with this phone or email already exists' : 'Registration failed' });
+  } finally {
+    client?.release();
   }
 };
 
@@ -111,29 +113,30 @@ export const register = async (req, res) => {
  */
 export const login = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { identity, phone, password } = req.body;
+    const loginId = String(identity || phone || '').trim();
 
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'phone and password are required' });
+    if (!loginId || !password) {
+      return res.status(400).json({ error: 'Email or phone and password are required' });
     }
 
-    // Find user by phone
+    // A single sign-in field accepts either email or phone.
     const result = await query(
-      'SELECT User_ID, Full_Name, Phone, Password_Hash, Role FROM USERS WHERE Phone = $1',
-      [phone]
+      'SELECT User_ID, Full_Name, Phone, Email, Password_Hash, Role FROM USERS WHERE Phone = $1 OR LOWER(Email) = LOWER($1)',
+      [loginId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid phone or password' });
+      return res.status(401).json({ error: 'Invalid email, phone, or password' });
     }
 
     const user = result.rows[0];
 
     // Compare password with hash
-    const isValidPassword = await bcrypt.compare(password, user.Password_Hash);
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid phone or password' });
+      return res.status(401).json({ error: 'Invalid email, phone, or password' });
     }
 
     // Generate JWT
@@ -143,10 +146,11 @@ export const login = async (req, res) => {
       message: 'Login successful',
       token,
       user: {
-        userId: user.User_ID,
-        fullName: user.Full_Name,
-        phone: user.Phone,
-        role: user.Role,
+        userId: user.user_id,
+        fullName: user.full_name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
       },
     });
   } catch (err) {

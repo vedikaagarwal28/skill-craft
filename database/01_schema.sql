@@ -111,6 +111,7 @@ CREATE TABLE GIG_APPLICATIONS (
   Gig_ID INTEGER NOT NULL,
   Artisan_ID INTEGER NOT NULL,
   Bid_Amount NUMERIC(10, 2) NOT NULL CHECK (Bid_Amount > 0),
+  Proposal_Note TEXT,
   Application_Status VARCHAR(20) NOT NULL 
     CHECK (Application_Status IN ('pending', 'accepted', 'rejected'))
     DEFAULT 'pending',
@@ -139,7 +140,7 @@ CREATE INDEX idx_gig_applications_artisan ON GIG_APPLICATIONS(Artisan_ID);
 -- ============================================================================
 CREATE TABLE COMPLETION_CONTRACTS (
   Contract_ID SERIAL PRIMARY KEY,
-  Gig_ID INTEGER NOT NULL,
+  Gig_ID INTEGER NOT NULL UNIQUE,
   Selected_Artisan_ID INTEGER NOT NULL,
   Final_Amount NUMERIC(10, 2) NOT NULL CHECK (Final_Amount > 0),
   Payment_Status VARCHAR(20) NOT NULL 

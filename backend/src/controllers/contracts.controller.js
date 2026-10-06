@@ -24,61 +24,63 @@ export const getMyContracts = async (req, res) => {
     if (req.user.role === 'artisan') {
       // Artisan: contracts where they are the selected artisan
       sql = `SELECT
-        cc.Contract_ID,
-        cc.Gig_ID,
-        cc.Final_Amount,
-        cc.Payment_Status,
-        cc.Completion_Timestamp,
-        cc.Created_At,
-        gp.Skill_Required,
-        gp.Address,
-        u.Full_Name as employer_name,
-        rr.Rating_Stars,
-        rr.Feedback_Text
+        cc.contract_id,
+        cc.gig_id,
+        cc.final_amount,
+        cc.payment_status,
+        cc.completion_timestamp,
+        cc.created_at,
+        gp.skill_required,
+        gp.address,
+        u.full_name as employer_name,
+        u.phone as partner_phone,
+        rr.rating_stars,
+        rr.feedback_text
        FROM COMPLETION_CONTRACTS cc
-       JOIN GIG_POSTINGS gp ON cc.Gig_ID = gp.Gig_ID
-       JOIN USERS u ON gp.Employer_User_ID = u.User_ID
-       JOIN ARTISANS a ON cc.Selected_Artisan_ID = a.Artisan_ID
-       LEFT JOIN RATINGS_REVIEWS rr ON rr.Contract_ID = cc.Contract_ID
-       WHERE a.User_ID = $1
-       ORDER BY cc.Created_At DESC`;
+       JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
+       JOIN USERS u ON gp.employer_user_id = u.user_id
+       JOIN ARTISANS a ON cc.selected_artisan_id = a.artisan_id
+       LEFT JOIN RATINGS_REVIEWS rr ON rr.contract_id = cc.contract_id
+       WHERE a.user_id = $1
+       ORDER BY cc.created_at DESC`;
     } else if (req.user.role === 'employer') {
       // Employer: contracts on their own gigs
       sql = `SELECT
-        cc.Contract_ID,
-        cc.Gig_ID,
-        cc.Final_Amount,
-        cc.Payment_Status,
-        cc.Completion_Timestamp,
-        cc.Created_At,
-        gp.Skill_Required,
-        gp.Address,
-        a.User_ID as artisan_user_id,
-        u.Full_Name as artisan_name,
-        a.Trust_Score,
-        rr.Rating_Stars,
-        rr.Review_Date
+        cc.contract_id,
+        cc.gig_id,
+        cc.final_amount,
+        cc.payment_status,
+        cc.completion_timestamp,
+        cc.created_at,
+        gp.skill_required,
+        gp.address,
+        a.user_id as artisan_user_id,
+        u.full_name as artisan_name,
+        u.phone as partner_phone,
+        a.trust_score,
+        rr.rating_stars,
+        rr.review_date
        FROM COMPLETION_CONTRACTS cc
-       JOIN GIG_POSTINGS gp ON cc.Gig_ID = gp.Gig_ID
-       JOIN ARTISANS a ON cc.Selected_Artisan_ID = a.Artisan_ID
-       JOIN USERS u ON a.User_ID = u.User_ID
-       LEFT JOIN RATINGS_REVIEWS rr ON rr.Contract_ID = cc.Contract_ID
-       WHERE gp.Employer_User_ID = $1
-       ORDER BY cc.Created_At DESC`;
+       JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
+       JOIN ARTISANS a ON cc.selected_artisan_id = a.artisan_id
+       JOIN USERS u ON a.user_id = u.user_id
+       LEFT JOIN RATINGS_REVIEWS rr ON rr.contract_id = cc.contract_id
+       WHERE gp.employer_user_id = $1
+       ORDER BY cc.created_at DESC`;
     } else if (req.user.role === 'admin') {
       // Admin: all contracts
       sql = `SELECT
         cc.*,
-        gp.Skill_Required,
-        gp.Address,
-        eu.Full_Name as employer_name,
-        au.Full_Name as artisan_name
+        gp.skill_required,
+        gp.address,
+        eu.full_name as employer_name,
+        au.full_name as artisan_name
        FROM COMPLETION_CONTRACTS cc
-       JOIN GIG_POSTINGS gp ON cc.Gig_ID = gp.Gig_ID
-       JOIN USERS eu ON gp.Employer_User_ID = eu.User_ID
-       JOIN ARTISANS a ON cc.Selected_Artisan_ID = a.Artisan_ID
-       JOIN USERS au ON a.User_ID = au.User_ID
-       ORDER BY cc.Created_At DESC`;
+       JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
+       JOIN USERS eu ON gp.employer_user_id = eu.user_id
+       JOIN ARTISANS a ON cc.selected_artisan_id = a.artisan_id
+       JOIN USERS au ON a.user_id = au.user_id
+       ORDER BY cc.created_at DESC`;
       params.pop(); // Admin doesn't need the userId param
     } else {
       return res.status(403).json({ error: 'Access denied' });
@@ -122,10 +124,10 @@ export const markPaymentSettled = async (req, res) => {
 
     // Get contract and check ownership
     const contractResult = await query(
-      `SELECT cc.*, gp.Employer_User_ID
+      `SELECT cc.*, gp.employer_user_id
        FROM COMPLETION_CONTRACTS cc
-       JOIN GIG_POSTINGS gp ON cc.Gig_ID = gp.Gig_ID
-       WHERE cc.Contract_ID = $1`,
+       JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
+       WHERE cc.contract_id = $1`,
       [contractId]
     );
 
@@ -135,10 +137,14 @@ export const markPaymentSettled = async (req, res) => {
 
     const contract = contractResult.rows[0];
 
-    if (req.user.role !== 'admin' && req.user.userId !== contract.Employer_User_ID) {
+    if (req.user.role !== 'admin' && req.user.userId !== contract.employer_user_id) {
       return res.status(403).json({
         error: 'Can only manage payments for own contracts',
       });
+    }
+
+    if (contract.payment_status !== 'pending') {
+      return res.status(409).json({ error: 'This payment has already been updated' });
     }
 
     // Update payment status

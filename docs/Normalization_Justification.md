@@ -7,6 +7,8 @@
 
 The SkillCraft database schema consists of **six tables**, all normalized to **Third Normal Form (3NF)**. This document walks through each table, demonstrates its normalization, and explains the design decisions that keep the schema in 3NF while maintaining real-world applicability.
 
+**Current implementation note:** `ARTISANS.Trust_Score` is a deliberately cached aggregate derived from paid-status contract reviews. A trigger maintains it after each new review. It is useful for fast reads but should be disclosed as derived, potentially stale data if source records are changed outside the supported workflow; it is not proof of independent payment verification. See the [current README](../README.md) for demo status.
+
 ---
 
 ## Normalization Levels: Quick Recap

@@ -12,7 +12,7 @@
 
 import request from 'supertest';
 import app from '../src/index.js';
-import { query } from '../src/db.js';
+import { query, closePool } from '../src/db.js';
 
 // Set test environment
 process.env.NODE_ENV = 'test';
@@ -43,7 +43,7 @@ describe('SkillCraft API - CRUD Tests', () => {
    * Cleanup
    */
   afterAll(async () => {
-    // Cleanup handled by Jest timeout/exit
+    await closePool();
     console.log('CRUD tests completed');
   });
 
@@ -92,13 +92,13 @@ describe('SkillCraft API - CRUD Tests', () => {
       'SELECT Artisan_ID FROM ARTISANS WHERE User_ID = $1',
       [artisanUserId]
     );
-    artisanId = result.rows[0].Artisan_ID;
+    artisanId = result.rows[0].artisan_id;
 
     const res = await request(app).get(`/api/artisans/${artisanId}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.Skill_Category).toBe('Handloom Weaving');
-    expect(res.body.Trust_Score).toBeDefined();
+    expect(res.body.skill_category).toBe('Handloom Weaving');
+    expect(res.body.trust_score).toBeDefined();
   });
 
   // =========================================================================
@@ -138,10 +138,10 @@ describe('SkillCraft API - CRUD Tests', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.gig.Status).toBe('open');
-    expect(res.body.gig.Budget).toBe(5000);
+    expect(res.body.gig.status).toBe('open');
+    expect(Number(res.body.gig.budget)).toBe(5000);
 
-    gigId = res.body.gig.Gig_ID;
+    gigId = res.body.gig.gig_id;
   });
 
   test('3.2 - List open gigs', async () => {
@@ -166,10 +166,10 @@ describe('SkillCraft API - CRUD Tests', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.application.Application_Status).toBe('pending');
-    expect(res.body.application.Bid_Amount).toBe(4800);
+    expect(res.body.application.application_status).toBe('pending');
+    expect(Number(res.body.application.bid_amount)).toBe(4800);
 
-    applicationId = res.body.application.Application_ID;
+    applicationId = res.body.application.application_id;
   });
 
   test('4.2 - Artisan cannot bid twice on same gig', async () => {
@@ -192,7 +192,7 @@ describe('SkillCraft API - CRUD Tests', () => {
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBeGreaterThan(0);
-    expect(res.body[0].Bid_Amount).toBe(4800);
+    expect(Number(res.body[0].bid_amount)).toBe(4800);
   });
 
   // =========================================================================
@@ -204,7 +204,7 @@ describe('SkillCraft API - CRUD Tests', () => {
       .set('Authorization', `Bearer ${employerToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.application.Application_Status).toBe('accepted');
+    expect(res.body.application.application_status).toBe('accepted');
   });
 
   test('5.2 - Gig is now closed', async () => {
@@ -213,7 +213,7 @@ describe('SkillCraft API - CRUD Tests', () => {
       .set('Authorization', `Bearer ${employerToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.gig.Status).toBe('closed');
+    expect(res.body.gig.status).toBe('closed');
   });
 
   test('5.3 - Contract created', async () => {
@@ -223,7 +223,7 @@ describe('SkillCraft API - CRUD Tests', () => {
     );
 
     expect(contractResult.rows.length).toBe(1);
-    contractId = contractResult.rows[0].Contract_ID;
+    contractId = contractResult.rows[0].contract_id;
   });
 
   // =========================================================================
@@ -238,7 +238,7 @@ describe('SkillCraft API - CRUD Tests', () => {
       });
 
     expect(res.status).toBe(200);
-    expect(res.body.contract.Payment_Status).toBe('paid');
+    expect(res.body.contract.payment_status).toBe('paid');
   });
 
   test('6.2 - Employer leaves a review', async () => {
@@ -251,7 +251,7 @@ describe('SkillCraft API - CRUD Tests', () => {
       });
 
     expect(res.status).toBe(201);
-    expect(res.body.review.Rating_Stars).toBe(5);
+    expect(res.body.review.rating_stars).toBe(5);
   });
 
   test('6.3 - Trust score updated via trigger', async () => {
@@ -260,7 +260,7 @@ describe('SkillCraft API - CRUD Tests', () => {
       [artisanId]
     );
 
-    const updatedTrustScore = result.rows[0].Trust_Score;
+    const updatedTrustScore = Number(result.rows[0].trust_score);
     expect(updatedTrustScore).toBeGreaterThan(0);
     console.log(`  Trust score updated to: ${updatedTrustScore}`);
   });
@@ -270,7 +270,7 @@ describe('SkillCraft API - CRUD Tests', () => {
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body[0].Rating_Stars).toBe(5);
+    expect(res.body[0].rating_stars).toBe(5);
   });
 
   // =========================================================================

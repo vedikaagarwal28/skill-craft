@@ -53,6 +53,9 @@ try {
 
   const employer = await request('/auth/login', 'POST', { identity: 'ramesh@constructionco.in', password: 'password123' });
   const artisan = await request('/auth/login', 'POST', { identity: 'lakshmi@skillcraft.local', password: 'password123' });
+  await request('/gigs', 'POST', { skillRequired: 'Carpentry', description: 'Repair a timber door for a nearby household.', address: 'Pune', budget: 5000 }, artisan.token, 403);
+  const publicArtisan = await request('/artisans/1');
+  assert.equal(publicArtisan.artisan_id, 1);
   const newcomer = await request('/auth/register', 'POST', {
     fullName: 'Test Weaver', phone: '9990001112', email: 'weaver@test.local',
     password: 'strongpass123', role: 'artisan', skillCategory: 'Handloom weaving',
@@ -61,20 +64,33 @@ try {
   assert.equal(newcomer.user.role, 'artisan');
   const newcomerLogin = await request('/auth/login', 'POST', { identity: 'weaver@test.local', password: 'strongpass123' });
   assert.equal(newcomerLogin.user.fullName, 'Test Weaver');
+  const otherEmployer = await request('/auth/register', 'POST', {
+    fullName: 'Other Employer', phone: '9990001114', email: 'other-employer@test.local',
+    password: 'strongpass123', role: 'employer',
+  }, undefined, 201);
   await request('/auth/register', 'POST', {
     fullName: 'Not Allowed', phone: '9990001113', email: 'admin@test.local',
     password: 'strongpass123', role: 'admin',
   }, undefined, 400);
   const posted = await request('/gigs', 'POST', { skillRequired: 'Handloom weaving', description: 'Create six cotton runners for a local community exhibition.', address: 'Pune, Maharashtra', budget: 6400 }, employer.token, 201);
   const gigId = posted.gig.gig_id;
+  const openGigs = await request('/gigs');
+  assert.ok(openGigs.some(item => item.gig_id === gigId));
   const myJobs = await request('/gigs/mine', 'GET', undefined, employer.token);
   assert.ok(myJobs.some(item => item.gig_id === gigId));
+  await request(`/gigs/${gigId}/applications`, 'POST', { bidAmount: 6200 }, employer.token, 403);
+  await request(`/gigs/${gigId}/cancel`, 'PATCH', {}, artisan.token, 403);
+  await request(`/gigs/${gigId}/cancel`, 'PATCH', {}, otherEmployer.token, 403);
   const bid = await request(`/gigs/${gigId}/applications`, 'POST', { bidAmount: 6000, note: 'I can deliver within twelve days.' }, artisan.token, 201);
   await request(`/gigs/${gigId}/applications`, 'POST', { bidAmount: 5900 }, artisan.token, 409);
   const detail = await request(`/gigs/${gigId}`, 'GET', undefined, employer.token);
   assert.equal(detail.applications.length, 1);
   assert.equal(detail.applications[0].proposal_note, 'I can deliver within twelve days.');
+  const otherEmployerDetail = await request(`/gigs/${gigId}`, 'GET', undefined, otherEmployer.token);
+  assert.equal(otherEmployerDetail.applications.length, 0);
+  await request(`/applications/${bid.application.application_id}/accept`, 'PATCH', {}, otherEmployer.token, 403);
   await request(`/applications/${bid.application.application_id}/accept`, 'PATCH', {}, employer.token);
+  await request(`/gigs/${gigId}/cancel`, 'PATCH', {}, employer.token, 409);
   const contracts = await request('/contracts/mine', 'GET', undefined, employer.token);
   const contract = contracts.find(item => item.gig_id === gigId);
   assert.ok(contract);
@@ -87,7 +103,23 @@ try {
   const profile = await request('/artisans/1');
   assert.equal('phone' in profile, false);
   assert.equal('email' in profile, false);
-  console.log('API flow passed: post, bid, accept, pay, review, and private profile fields.');
+
+  const cancellable = await request('/gigs', 'POST', {
+    skillRequired: 'Handloom weaving', description: 'Weave four cotton napkins for a family event.',
+    address: 'Pune, Maharashtra', budget: 2200,
+  }, employer.token, 201);
+  const cancelId = cancellable.gig.gig_id;
+  const pendingBid = await request(`/gigs/${cancelId}/applications`, 'POST', { bidAmount: 2000 }, artisan.token, 201);
+  await request(`/gigs/${cancelId}/applications`, 'POST', { bidAmount: 2100 }, newcomer.token, 201);
+  const cancelled = await request(`/gigs/${cancelId}/cancel`, 'PATCH', {}, employer.token);
+  assert.equal(cancelled.gig.status, 'cancelled');
+  const cancelledDetail = await request(`/gigs/${cancelId}`, 'GET', undefined, employer.token);
+  assert.ok(cancelledDetail.applications.every(item => item.application_status === 'rejected'));
+  await request(`/gigs/${cancelId}/applications`, 'POST', { bidAmount: 1900 }, artisan.token, 400);
+  const ownBids = await request('/applications/mine', 'GET', undefined, artisan.token);
+  assert.equal(ownBids.find(item => item.application_id === pendingBid.application.application_id).application_status, 'rejected');
+
+  console.log('API flow passed: post, bid, accept, cancel, pay, review, route paths, RBAC, and private fields.');
 } catch (error) {
   console.error(error);
   if (serverLog) console.error(serverLog);

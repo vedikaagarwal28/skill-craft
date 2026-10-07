@@ -86,7 +86,7 @@ app.use((err, req, res, next) => {
 // ============================================================================
 // Server Startup
 // ============================================================================
-const server = app.listen(PORT, () => {
+const server = process.env.NODE_ENV === 'test' ? null : app.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║  SkillCraft Micro-Jobs API                                 ║
@@ -102,7 +102,7 @@ const server = app.listen(PORT, () => {
 // ============================================================================
 // Graceful Shutdown
 // ============================================================================
-process.on('SIGTERM', async () => {
+if (server) process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
   server.close(async () => {
     console.log('HTTP server closed');
@@ -111,7 +111,7 @@ process.on('SIGTERM', async () => {
   });
 });
 
-process.on('SIGINT', async () => {
+if (server) process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
   server.close(async () => {
     console.log('HTTP server closed');

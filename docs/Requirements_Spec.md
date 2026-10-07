@@ -1,6 +1,8 @@
 # Software Requirements Specification
 ## SkillCraft Micro-Jobs Platform
 
+This is the original functional specification, updated for the current prototype on 7 October 2026. Requirements marked **planned** below are not implemented. The [README](../README.md) describes evidence and remaining DBTHON work.
+
 ---
 
 ## 1. Functional Requirements
@@ -9,9 +11,9 @@
 
 | Req | Description | Priority |
 |---|---|---|
-| FR-AUTH-1 | Users can register as artisan, employer, or admin | HIGH |
+| FR-AUTH-1 | Public users can register as artisan or employer; admin self-registration is rejected | HIGH |
 | FR-AUTH-2 | System hashes passwords using bcrypt (never store plaintext) | HIGH |
-| FR-AUTH-3 | Users can login with phone + password | HIGH |
+| FR-AUTH-3 | Users can login with email or phone + password | HIGH |
 | FR-AUTH-4 | System issues JWT token valid for 7 days | HIGH |
 | FR-AUTH-5 | Artisans must provide skill category, location, hourly rate at registration | HIGH |
 | FR-AUTH-6 | JWT token verified on all protected endpoints | HIGH |
@@ -22,10 +24,10 @@
 |---|---|---|
 | FR-ART-1 | Artisan can view own profile (skill, location, rate, trust score) | HIGH |
 | FR-ART-2 | Artisan can update own profile (skill, location, rate) | HIGH |
-| FR-ART-3 | Artisan trust score auto-calculated from reviews (70% avg rating + 30% payment completion) | HIGH |
+| FR-ART-3 | Artisan trust score recalculated from reviews on contracts marked paid, with a three-review 3.5-star prior | HIGH |
 | FR-ART-4 | Any user can view any artisan's public profile (name, skill, location, rate, trust score, reviews) | MEDIUM |
-| FR-ART-5 | System displays artisan rating only after at least 1 review | MEDIUM |
-| FR-ART-6 | Artisans can search other artisans by skill category or location | LOW |
+| FR-ART-5 | Planned: hide or explain a score when an artisan has no contract-linked reviews | MEDIUM |
+| FR-ART-6 | Employers can search artisan profiles by skill or location | LOW |
 
 ### 1.3 Gig Management
 
@@ -43,7 +45,7 @@
 
 | Req | Description | Priority |
 |---|---|---|
-| FR-BID-1 | Artisan can submit a bid on an open gig (with bid amount < gig budget) | HIGH |
+| FR-BID-1 | Artisan can submit a positive bid on an open gig; the bid may differ from the posted budget | HIGH |
 | FR-BID-2 | Artisan can bid only once per gig (enforced by UNIQUE constraint) | HIGH |
 | FR-BID-3 | Artisan can view all own bids with gig details | HIGH |
 | FR-BID-4 | Bid has status: 'pending', 'accepted', or 'rejected' | HIGH |
@@ -60,17 +62,17 @@
 | FR-CON-2 | Artisan and employer can view contract history | HIGH |
 | FR-CON-3 | Payment status tracked: 'pending', 'paid', or 'disputed' | HIGH |
 | FR-CON-4 | Employer can mark payment as 'paid' or 'disputed' | HIGH |
-| FR-CON-5 | Contract completed timestamp can be set by employer | MEDIUM |
+| FR-CON-5 | Planned: employer can set a separate work-completion timestamp | MEDIUM |
 
 ### 1.6 Reviews & Trust Score
 
 | Req | Description | Priority |
 |---|---|---|
-| FR-REV-1 | Employer can leave a 1–5 star review after contract completion | HIGH |
+| FR-REV-1 | Employer can leave a 1–5 star review after recording the contract as paid | HIGH |
 | FR-REV-2 | Employer can add optional feedback text with review | MEDIUM |
 | FR-REV-3 | Each contract can have at most one review (enforced by UNIQUE constraint) | HIGH |
-| **FR-REV-4** | **Trust score auto-recalculated after each review via trigger (formula: 70% avg rating + 30% payment completion ratio)** | **CRITICAL** |
-| FR-REV-5 | Artisan can view all reviews left for them (public, anonymized by gig) | MEDIUM |
+| **FR-REV-4** | **Trust score auto-recalculated after each review via trigger using paid-status reviews and a three-review prior** | **CRITICAL** |
+| FR-REV-5 | Artisan can view public reviews linked to their contracts | MEDIUM |
 | FR-REV-6 | Reviews visible to all users to help employer hiring decisions | MEDIUM |
 
 ### 1.7 Dashboard & Reporting
@@ -80,15 +82,15 @@
 | FR-DASH-1 | Top Rated Artisans view: all artisans ranked by trust score desc | MEDIUM |
 | FR-DASH-2 | Skill Category Earnings view: avg bid, avg final amount, difference by skill | MEDIUM |
 | FR-DASH-3 | Open Gigs view: current open gigs with bid count | MEDIUM |
-| FR-DASH-4 | Admin dashboard accessible only to admin role | MEDIUM |
+| FR-DASH-4 | Planned: dedicated admin dashboard | MEDIUM |
 
 ### 1.8 RBAC (Role-Based Access Control)
 
 | Req | Description | Priority |
 |---|---|---|
-| FR-RBAC-1 | Artisan can only: view own profile, submit bids, view own contracts, view reviews for self | HIGH |
+| FR-RBAC-1 | Artisan can submit bids and view own bids/contracts; public artisan profiles and reviews are readable by all | HIGH |
 | FR-RBAC-2 | Employer can only: post gigs, view own gigs, accept/reject bids on own gigs, view own contracts, leave reviews | HIGH |
-| FR-RBAC-3 | Admin can: view all data, deactivate users, resolve disputes | MEDIUM |
+| FR-RBAC-3 | Planned: admin deactivation and dispute-resolution tools; seeded admin role is for demonstration only | MEDIUM |
 | FR-RBAC-4 | Attempting to access unauthorized resource returns 403 Forbidden | HIGH |
 
 ---
@@ -112,10 +114,10 @@
 |---|---|---|
 | NFR-SEC-1 | All passwords hashed with bcrypt (min 10 rounds) | CRITICAL |
 | NFR-SEC-2 | All database queries use parameterized queries ($1, $2, ...) to prevent SQL injection | CRITICAL |
-| NFR-SEC-3 | JWT secret stored in .env, never hardcoded | CRITICAL |
+| NFR-SEC-3 | Planned for deployment: require a non-default JWT secret; local preview has a fixed development fallback | CRITICAL |
 | NFR-SEC-4 | CORS enabled only for whitelisted frontend domains | HIGH |
 | NFR-SEC-5 | Error messages do not leak SQL syntax or system internals | HIGH |
-| NFR-SEC-6 | HTTPS enforced in production (not required for dev/demo) | MEDIUM |
+| NFR-SEC-6 | Planned for deployment: enforce HTTPS; local demo uses HTTP | MEDIUM |
 
 ### 2.3 Performance & Scalability
 
@@ -123,18 +125,18 @@
 |---|---|---|
 | NFR-PERF-1 | Indexes on commonly queried columns: Skill_Category, Base_Location, Status, Gig_ID, User_ID | HIGH |
 | NFR-PERF-2 | Composite index on (Skill_Category, Base_Location) for fast skill+location matching | HIGH |
-| NFR-PERF-3 | Database connection pooling (pg Pool) with max 20 connections | HIGH |
-| NFR-PERF-4 | Views (Top_Rated_Artisans_View, etc.) materialized or cached if queries > 2s | MEDIUM |
-| NFR-PERF-5 | API response time < 1s for 95% of queries under normal load | MEDIUM |
+| NFR-PERF-3 | Database connection pooling (`pg` Pool, default maximum 10 connections) | HIGH |
+| NFR-PERF-4 | Planned: benchmark the views before deciding whether caching is needed | MEDIUM |
+| NFR-PERF-5 | Planned target: API response time < 1s for 95% of queries under defined load | MEDIUM |
 
 ### 2.4 Availability & Reliability
 
 | Req | Description | Priority |
 |---|---|---|
-| NFR-AVAIL-1 | Database transactions use SERIALIZABLE isolation to prevent race conditions | CRITICAL |
+| NFR-AVAIL-1 | Bid acceptance uses SERIALIZABLE isolation and a gig-row lock; cancellation locks the same row | CRITICAL |
 | NFR-AVAIL-2 | Graceful shutdown on SIGTERM/SIGINT (close connections, release pool) | HIGH |
-| NFR-AVAIL-3 | Health check endpoint (/health) returns 200 if system operational | MEDIUM |
-| NFR-AVAIL-4 | Database backups (manual snapshots) before schema changes | MEDIUM |
+| NFR-AVAIL-3 | `/health` returns 200 while the API process is running; it does not check database health | MEDIUM |
+| NFR-AVAIL-4 | Planned: database backups before schema changes | MEDIUM |
 
 ### 2.5 Usability
 
@@ -159,8 +161,8 @@
 | Req | Description | Priority |
 |---|---|---|
 | NFR-TEST-1 | CRUD operations tested (register, login, post gig, bid, accept, review) | HIGH |
-| NFR-TEST-2 | Concurrent bid acceptance tested to prove row locking works | **CRITICAL** |
-| NFR-TEST-3 | At least 80% of happy-path scenarios covered by tests | MEDIUM |
+| NFR-TEST-2 | Concurrent accepts tested for a single-winner result; isolation, lock, trigger, and constraint act together | **CRITICAL** |
+| NFR-TEST-3 | Planned: define and measure workflow coverage against the requirements | MEDIUM |
 | NFR-TEST-4 | Tests use separate test database to avoid production data pollution | HIGH |
 
 ---
@@ -172,7 +174,7 @@
 1. **Database**: PostgreSQL 15+ (not MySQL or SQLite)
 2. **Language**: JavaScript/Node.js for backend, React for frontend
 3. **No heavy ORM**: Raw parameterized SQL, not Prisma/Sequelize/TypeORM
-4. **Payment**: No real payment gateway (mocked in tests)
+4. **Payment**: No real payment gateway; employers record a status in the prototype
 5. **Authentication**: JWT-based, no OAuth/SSO (scope: demo)
 6. **Regional Languages**: Placeholder support (field stored, UI English-only in this version)
 
@@ -180,7 +182,7 @@
 
 1. Users have basic smartphone/computer and internet connectivity
 2. Artisans are comfortable using a mobile app (future version; current: web only)
-3. Trust scores sufficient for initial launch (detailed dispute resolution added in v2)
+3. Trust-score usefulness and fairness need user study and adversarial testing before a launch claim
 4. Platform operates in single region/timezone initially
 5. Employers are willing to use web interface to post gigs and accept bids
 
@@ -197,9 +199,9 @@
 - [x] Bids: submit, list, accept (transaction-safe), reject
 - [x] Contracts: view history, mark payment
 - [x] Reviews: post, view; auto-calculate trust score
-- [x] RBAC: artisan, employer, admin roles enforced
+- [x] RBAC: artisan/employer API roles and ownership checks; public admin signup blocked
 - [x] Dashboard: top artisans, skill earnings, open gigs views
-- [x] Tests: CRUD + concurrency validation
+- [x] Tests: current schema/API flow and browser checks; separate PostgreSQL concurrency suite retained
 - [x] Docs: problem report, requirements, normalization, testing, impact
 
 ### Nice-to-Have (v2)

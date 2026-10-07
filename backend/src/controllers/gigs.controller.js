@@ -7,7 +7,7 @@
 // PATCH /api/gigs/:id/cancel  - Cancel a gig (employer only)
 // ============================================================================
 
-import { query } from '../db.js';
+import { query, getClient } from '../db.js';
 
 /** Jobs owned by the signed-in employer, including matched and cancelled work. */
 export const getMyGigs = async (req, res) => {
@@ -201,6 +201,7 @@ export const getGigDetail = async (req, res) => {
  * Employer only (can only cancel own gigs)
  */
 export const cancelGig = async (req, res) => {
+  let client;
   try {
     const { id } = req.params;
 
@@ -212,13 +213,17 @@ export const cancelGig = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    // Get gig to check ownership
-    const gigResult = await query(
-      'SELECT Employer_User_ID FROM GIG_POSTINGS WHERE Gig_ID = $1',
+    client = await getClient();
+    await client.query('BEGIN');
+
+    // Serialize cancellation with bid acceptance on the same gig row.
+    const gigResult = await client.query(
+      'SELECT Employer_User_ID, Status FROM GIG_POSTINGS WHERE Gig_ID = $1 FOR UPDATE',
       [id]
     );
 
     if (gigResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Gig not found' });
     }
 
@@ -226,21 +231,38 @@ export const cancelGig = async (req, res) => {
 
     // Check if user is owner (unless admin)
     if (req.user.role !== 'admin' && req.user.userId !== gig.employer_user_id) {
+      await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Can only cancel own gigs' });
     }
 
-    // Cancel gig
-    const result = await query(
-      'UPDATE GIG_POSTINGS SET Status = $1, Updated_At = CURRENT_TIMESTAMP WHERE Gig_ID = $2 RETURNING *',
-      ['cancelled', id]
+    if (gig.status !== 'open') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Only open jobs can be cancelled' });
+    }
+
+    const result = await client.query(
+      "UPDATE GIG_POSTINGS SET Status = 'cancelled', Updated_At = CURRENT_TIMESTAMP WHERE Gig_ID = $1 RETURNING *",
+      [id]
     );
+    await client.query(
+      `UPDATE GIG_APPLICATIONS
+       SET Application_Status = 'rejected', Updated_At = CURRENT_TIMESTAMP
+       WHERE Gig_ID = $1 AND Application_Status = 'pending'`,
+      [id]
+    );
+    await client.query('COMMIT');
 
     res.json({
       message: 'Gig cancelled successfully',
       gig: result.rows[0],
     });
   } catch (err) {
+    if (client) await client.query('ROLLBACK');
     console.error('Error cancelling gig:', err);
-    res.status(500).json({ error: 'Failed to cancel gig' });
+    res.status(err.code === '40001' ? 409 : 500).json({
+      error: err.code === '40001' ? 'Job changed while cancelling; please try again' : 'Failed to cancel gig',
+    });
+  } finally {
+    client?.release();
   }
 };

@@ -141,6 +141,14 @@ function Empty({ title, text, action }) {
   )
 }
 
+function jobTitle(gig) {
+  const firstSentence = gig.description?.trim().split(/[.!?]/)[0].trim()
+  if (!firstSentence || firstSentence.split(/\s+/)[0].length > 28) {
+    return `${gig.skill} project`
+  }
+  return firstSentence
+}
+
 function Card({ gig }) {
   return (
     <Link className="gig-card" to={`/gigs/${gig.id}`}>
@@ -148,7 +156,7 @@ function Card({ gig }) {
         <span className="category">{gig.skill}</span>
         <Status value={gig.status} />
       </div>
-      <h3>{gig.description?.split('.')[0] || gig.skill}</h3>
+      <h3>{jobTitle(gig)}</h3>
       <p>{gig.description}</p>
       <div className="card-meta">
         <span>
@@ -185,7 +193,7 @@ function Header({ user, setUser }) {
   return (
     <header className="site-header">
       <div className="header-inner">
-        <Link to="/" className="brand" onClick={() => setOpen(false)}>
+        <Link to={user ? '/dashboard' : '/'} className="brand" onClick={() => setOpen(false)}>
           <span className="brand-symbol">✳</span>
           <span>
             skillcraft<small>WORK, WITH WORTH.</small>
@@ -195,12 +203,21 @@ function Header({ user, setUser }) {
           {open ? <X /> : <Menu />}
         </button>
         <nav className={open ? 'nav open' : 'nav'} aria-label="Main navigation">
-          <NavLink to="/explore" onClick={() => setOpen(false)}>
-            Find work
-          </NavLink>
-          <NavLink to="/artisans" onClick={() => setOpen(false)}>
-            Find artisans
-          </NavLink>
+          {user && (
+            <NavLink to="/dashboard" onClick={() => setOpen(false)}>
+              {user.role === 'artisan' ? 'My workspace' : 'Hiring overview'}
+            </NavLink>
+          )}
+          {(!user || user.role === 'artisan') && (
+            <NavLink to="/explore" onClick={() => setOpen(false)}>
+              Find work
+            </NavLink>
+          )}
+          {(!user || user.role === 'employer') && (
+            <NavLink to="/artisans" onClick={() => setOpen(false)}>
+              Find artisans
+            </NavLink>
+          )}
           {user?.role === 'artisan' && (
             <NavLink to="/my-bids" onClick={() => setOpen(false)}>
               My bids
@@ -212,14 +229,14 @@ function Header({ user, setUser }) {
             </NavLink>
           )}
           {user && (
-            <>
-              <NavLink to="/contracts" onClick={() => setOpen(false)}>
-                Contracts
-              </NavLink>
-              <NavLink to="/dashboard" onClick={() => setOpen(false)}>
-                Overview
-              </NavLink>
-            </>
+            <NavLink to="/contracts" onClick={() => setOpen(false)}>
+              {user.role === 'artisan' ? 'My agreements' : 'Hires & payments'}
+            </NavLink>
+          )}
+          {user?.role === 'employer' && (
+            <NavLink className="mobile-post-link" to="/post-job" onClick={() => setOpen(false)}>
+              Post a job
+            </NavLink>
           )}
         </nav>
         <div className="header-actions">
@@ -344,7 +361,7 @@ function Home() {
           <div>
             <b>03</b>
             <h3>Build a record</h3>
-            <p>Keep contracts, payments, and verified feedback together as your work grows.</p>
+            <p>Keep contracts, recorded payment status, and work feedback together.</p>
           </div>
         </div>
       </section>
@@ -503,7 +520,7 @@ function ArtisanCard({ artisan }) {
         </span>
         <span className="trust-score">
           <strong>{artisan.trustScore ? artisan.trustScore.toFixed(1) : '—'}</strong>
-          <small>VERIFIED SCORE</small>
+          <small>WORK-BASED SCORE</small>
         </span>
       </div>
       <h3>{artisan.name}</h3>
@@ -519,7 +536,7 @@ function ArtisanCard({ artisan }) {
         </span>
         <span>
           <strong>{artisan.reviews}</strong>
-          <small>verified reviews</small>
+          <small>contract-linked reviews</small>
         </span>
         <span className="artisan-open">
           <ArrowUpRight size={18} />
@@ -543,7 +560,7 @@ function Artisans() {
       <Title
         eyebrow="THE PEOPLE BEHIND THE WORK"
         title="Find skilled artisans."
-        text="Explore local talent through real skills, tracked contracts, and feedback from verified agreements."
+        text="Explore local talent through skills, tracked contracts, and feedback from recorded agreements."
       />
       <div className="filters artisan-filters">
         <label className="search">
@@ -635,7 +652,7 @@ function ArtisanProfile() {
               </div>
               <div className="profile-score">
                 <strong>{artisan.trustScore ? artisan.trustScore.toFixed(1) : '—'}</strong>
-                <span>Verified trust score</span>
+                <span>Contract-linked score</span>
                 <small>From completed work and reviews</small>
               </div>
             </div>
@@ -654,7 +671,7 @@ function ArtisanProfile() {
                   </div>
                   <div>
                     <strong>{artisan.reviews}</strong>
-                    <span>Verified reviews</span>
+                    <span>Contract-linked reviews</span>
                   </div>
                   <div>
                     <strong>{money(artisan.hourlyRate)}</strong>
@@ -675,7 +692,7 @@ function ArtisanProfile() {
                 </div>
               </section>
               <section className="profile-section">
-                <span className="eyebrow">VERIFIED FEEDBACK</span>
+                <span className="eyebrow">WORK RECORD FEEDBACK</span>
                 <h2>What employers say.</h2>
                 {history.error && <Notice>{history.error}</Notice>}
                 {(history.data || []).length ? (
@@ -773,14 +790,14 @@ function Detail({ user }) {
   }
   return (
     <main className="page">
-      <Link className="back-link" to="/explore">
-        <ArrowLeft size={16} /> Back to opportunities
+      <Link className="back-link" to={mine ? '/my-jobs' : '/explore'}>
+        <ArrowLeft size={16} /> {mine ? 'Back to my jobs' : 'Back to opportunities'}
       </Link>
       <div className="detail-layout">
         <div>
           <div className="detail-head">
             <span className="eyebrow">JOB #{gig.id}</span>
-            <h1>{gig.description?.split('.')[0] || gig.skill}</h1>
+            <h1>{jobTitle(gig)}</h1>
             <div className="detail-badges">
               <span className="category">{gig.skill}</span>
               <Status value={gig.status} />
@@ -1206,16 +1223,18 @@ function Dashboard({ user }) {
           <span>Waiting for settlement</span>
         </div>
         <div className="stat-dark">
-          <small>{user.role === 'artisan' ? 'Paid to you' : 'Payments completed'}</small>
+          <small>{user.role === 'artisan' ? 'Marked paid to you' : 'Payments marked paid'}</small>
           <strong>{money(paid)}</strong>
-          <span>Through tracked contracts</span>
+          <span>{user.role === 'artisan' ? 'Recorded by employers' : 'Recorded by you'}</span>
         </div>
       </div>
       <div className="panels">
         <section className="panel">
           <div className="panel-head">
             <div>
-              <span className="eyebrow">IN MOTION</span>
+              <span className="eyebrow">
+                {user.role === 'artisan' ? 'OFFERS YOU SENT' : 'JOBS YOU POSTED'}
+              </span>
               <h2>{user.role === 'artisan' ? 'Your recent bids' : 'Your jobs'}</h2>
             </div>
             <Link to={user.role === 'artisan' ? '/my-bids' : '/my-jobs'}>
@@ -1250,8 +1269,10 @@ function Dashboard({ user }) {
         <section className="panel">
           <div className="panel-head">
             <div>
-              <span className="eyebrow">NEXT UP</span>
-              <h2>{user.role === 'artisan' ? 'Fresh opportunities' : 'Your agreements'}</h2>
+              <span className="eyebrow">
+                {user.role === 'artisan' ? 'OPEN RIGHT NOW' : 'YOUR HIRING RECORD'}
+              </span>
+              <h2>{user.role === 'artisan' ? 'Open jobs' : 'Your agreements'}</h2>
             </div>
             <Link to={user.role === 'artisan' ? '/explore' : '/contracts'}>
               View all <ArrowRight size={16} />
@@ -1285,7 +1306,7 @@ function Dashboard({ user }) {
         <ShieldCheck size={23} />
         <span>
           <strong>Every good project builds a record.</strong> Agreed bids become contracts, and
-          completed work can earn verified feedback.
+          paid-status contracts can receive feedback.
         </span>
       </div>
     </main>
@@ -1492,9 +1513,13 @@ function Contracts({ user }) {
   return (
     <main className="page">
       <Title
-        eyebrow="WORK HISTORY"
-        title="Contracts & payments"
-        text="Every accepted bid has a place here, from agreement to payment and feedback."
+        eyebrow={user.role === 'artisan' ? 'YOUR WORK RECORD' : 'YOUR HIRING RECORD'}
+        title={user.role === 'artisan' ? 'My agreements' : 'Hires & payments'}
+        text={
+          user.role === 'artisan'
+            ? 'Work you were selected for, with agreed amounts and payment status.'
+            : 'People you hired, agreed amounts, payment status, and your reviews.'
+        }
       />
       <Notice>{error}</Notice>
       <Notice good={message.startsWith('Payment') || message.startsWith('Review')}>
@@ -1547,7 +1572,7 @@ function Contracts({ user }) {
                   )}
                   {contract.rating && (
                     <span className="rating">
-                      {'★'.repeat(Number(contract.rating))} <small>Verified review</small>
+                      {'★'.repeat(Number(contract.rating))} <small>Contract review</small>
                     </span>
                   )}
                 </div>
@@ -1583,7 +1608,7 @@ function Contracts({ user }) {
             </button>
             <span className="eyebrow">RECOGNISE GOOD WORK</span>
             <h2 id="review-title">Leave a review</h2>
-            <p>Your feedback contributes to the artisan’s verified work record.</p>
+            <p>Your feedback contributes to the artisan’s contract-linked work record.</p>
             <form onSubmit={review}>
               <label>
                 Rating
@@ -1633,10 +1658,21 @@ function Shell() {
     <>
       <Header user={user} setUser={setUser} />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/explore" element={<Explore />} />
-        <Route path="/artisans" element={<Artisans />} />
-        <Route path="/artisans/:id" element={<ArtisanProfile />} />
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Home />} />
+        <Route
+          path="/explore"
+          element={user?.role === 'employer' ? <Navigate to="/my-jobs" replace /> : <Explore />}
+        />
+        <Route
+          path="/artisans"
+          element={user?.role === 'artisan' ? <Navigate to="/dashboard" replace /> : <Artisans />}
+        />
+        <Route
+          path="/artisans/:id"
+          element={
+            user?.role === 'artisan' ? <Navigate to="/dashboard" replace /> : <ArtisanProfile />
+          }
+        />
         <Route path="/gigs/:id" element={<Detail user={user} />} />
         <Route
           path="/signin"

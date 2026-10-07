@@ -34,7 +34,7 @@ LEFT JOIN RATINGS_REVIEWS rr ON rr.Contract_ID = cc.Contract_ID AND cc.Payment_S
 GROUP BY a.Artisan_ID, u.Full_Name, a.Skill_Category, a.Base_Location, a.Trust_Score
 ORDER BY a.Trust_Score DESC, COUNT(rr.Review_ID) DESC;
 
-COMMENT ON VIEW Top_Rated_Artisans_View IS 'Dashboard view: artisans ranked by trust score (derived from verified reviews). Supports finding high-quality, reliable workers.';
+COMMENT ON VIEW Top_Rated_Artisans_View IS 'Dashboard view: artisans ranked by trust score derived from reviews on contracts marked paid by employers.';
 
 -- ============================================================================
 -- VIEW 2: Skill_Category_Earnings_View
@@ -42,7 +42,7 @@ COMMENT ON VIEW Top_Rated_Artisans_View IS 'Dashboard view: artisans ranked by t
 -- Shows by skill category:
 --   - Average bid amount (what artisans ask for)
 --   - Average final settled amount (what they actually earn)
---   - Difference: the "middleman markup" that direct platform removes
+--   - Difference between bid and recorded contract amounts; not a measure of middleman fees
 -- Used by: Impact analysis, employer budgeting, artisan income projections.
 -- ============================================================================
 
@@ -67,7 +67,7 @@ LEFT JOIN COMPLETION_CONTRACTS cc ON gp.Gig_ID = cc.Gig_ID
 GROUP BY gp.Skill_Required
 ORDER BY avg_settled_amount DESC;
 
-COMMENT ON VIEW Skill_Category_Earnings_View IS 'Impact view: shows average bid vs. final amount by skill category. Negative difference means settlement < bid (artisans renegotiate down). Demonstrates direct-to-employer connection effect.';
+COMMENT ON VIEW Skill_Category_Earnings_View IS 'Descriptive view: average bids and contract amounts by skill category. These values do not establish an earnings uplift or middleman savings.';
 
 -- ============================================================================
 -- VIEW 3: Open_Gigs_View
@@ -117,7 +117,7 @@ DECLARE
   v_rating_sum NUMERIC;
   v_trust_score NUMERIC(3, 2);
 BEGIN
-  -- Count only feedback tied to a settled, verified contract.
+  -- Count only feedback tied to a contract marked paid by its employer.
   SELECT
     COUNT(rr.Review_ID), COALESCE(SUM(rr.Rating_Stars), 0)
     INTO v_review_count, v_rating_sum

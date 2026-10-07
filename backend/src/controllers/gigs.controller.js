@@ -78,7 +78,7 @@ export const postGig = async (req, res) => {
  */
 export const listGigs = async (req, res) => {
   try {
-    const { skillRequired, address, limit = 50 } = req.query;
+    const { skillRequired, address, q, limit = 50 } = req.query;
 
     let sql = `SELECT
       g.gig_id,
@@ -90,7 +90,12 @@ export const listGigs = async (req, res) => {
       g.budget,
       g.status,
       g.posted_date,
-      (SELECT COUNT(*) FROM GIG_APPLICATIONS WHERE Gig_ID = g.gig_id AND Application_Status = 'pending') as pending_applications
+      (SELECT COUNT(*) FROM GIG_APPLICATIONS WHERE Gig_ID = g.gig_id AND Application_Status = 'pending') as pending_applications,
+      CASE WHEN app_actor_role() = 'artisan' THEN
+        COALESCE((SELECT CASE WHEN LOWER(a.skill_category) = LOWER(g.skill_required) THEN 2 ELSE 0 END +
+          CASE WHEN split_part(LOWER(a.base_location), ',', 1) = split_part(LOWER(g.address), ',', 1) THEN 1 ELSE 0 END
+          FROM ARTISANS a WHERE a.user_id = app_actor_id()), 0)
+      ELSE 0 END AS match_score
      FROM GIG_POSTINGS g
      JOIN USERS u ON g.employer_user_id = u.user_id
      WHERE g.status = 'open'`;
@@ -98,17 +103,22 @@ export const listGigs = async (req, res) => {
     const params = [];
 
     if (skillRequired) {
-      sql += ` AND g.skill_required ILIKE $${params.length + 1}`;
-      params.push(`%${skillRequired}%`);
+      sql += ` AND LOWER(g.skill_required) = LOWER($${params.length + 1})`;
+      params.push(skillRequired);
     }
 
     if (address) {
-      sql += ` AND g.address ILIKE $${params.length + 1}`;
-      params.push(`%${address}%`);
+      sql += ` AND to_tsvector('simple', COALESCE(g.skill_required, '') || ' ' || COALESCE(g.address, '') || ' ' || COALESCE(g.description, '')) @@ websearch_to_tsquery('simple', $${params.length + 1})`;
+      params.push(address);
     }
 
-    sql += ` ORDER BY g.posted_date DESC LIMIT $${params.length + 1}`;
-    params.push(parseInt(limit) || 50);
+    if (q?.trim()) {
+      sql += ` AND to_tsvector('simple', COALESCE(g.skill_required, '') || ' ' || COALESCE(g.address, '') || ' ' || COALESCE(g.description, '')) @@ websearch_to_tsquery('simple', $${params.length + 1})`;
+      params.push(q.trim());
+    }
+
+    sql += ` ORDER BY match_score DESC, g.posted_date DESC LIMIT $${params.length + 1}`;
+    params.push(Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100));
 
     const result = await query(sql, params);
     res.json(result.rows);

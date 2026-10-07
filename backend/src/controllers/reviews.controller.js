@@ -117,20 +117,11 @@ export const getArtisanReviews = async (req, res) => {
 
     // Get reviews
     const result = await query(
-      `SELECT
-        rr.review_id,
-        rr.rating_stars,
-        rr.feedback_text,
-        rr.review_date,
-        u.full_name as employer_name,
-        gp.skill_required,
-        cc.final_amount
-       FROM RATINGS_REVIEWS rr
-       JOIN COMPLETION_CONTRACTS cc ON rr.contract_id = cc.contract_id
-       JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
-       JOIN USERS u ON gp.employer_user_id = u.user_id
-       WHERE cc.selected_artisan_id = $1
-       ORDER BY rr.review_date DESC`,
+      `SELECT review_id, rating_stars, feedback_text, review_date,
+              employer_name, skill_required, final_amount
+       FROM Artisan_Public_Reviews
+       WHERE artisan_id = $1
+       ORDER BY review_date DESC`,
       [artisanId]
     );
 

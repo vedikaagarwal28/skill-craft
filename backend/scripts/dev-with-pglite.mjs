@@ -13,7 +13,7 @@ const db = await PGlite.create(dataDir);
 
 const existing = await db.query("SELECT to_regclass('public.users') AS users");
 if (!existing.rows[0].users) {
-  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql']) {
+  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql', '09_dbthon_workflow.sql']) {
     await db.exec(await readFile(path.join(projectDir, 'database', file), 'utf8'));
   }
   console.log('Loaded SkillCraft schema and sample accounts.');
@@ -21,6 +21,7 @@ if (!existing.rows[0].users) {
   await db.exec(await readFile(path.join(projectDir, 'database', '06_proposal_note.sql'), 'utf8'));
   await db.exec(await readFile(path.join(projectDir, 'database', '08_unique_contracts.sql'), 'utf8'));
   await db.exec(await readFile(path.join(projectDir, 'database', '02_03_views_triggers_procedures.sql'), 'utf8'));
+  await db.exec(await readFile(path.join(projectDir, 'database', '09_dbthon_workflow.sql'), 'utf8'));
   await db.query('SELECT recalculate_trust_score(Artisan_ID) FROM ARTISANS');
 }
 

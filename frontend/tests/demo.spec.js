@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test('artisan bid becomes an employer contract and recorded payment', async ({ page }) => {
+test('artisan bid becomes an employer contract with two-party payment confirmation', async ({ page }) => {
   const pageErrors = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
 
@@ -68,13 +68,26 @@ test('artisan bid becomes an employer contract and recorded payment', async ({ p
   await expect(page.getByText('Bid accepted. A contract has been created.')).toBeVisible()
   await page.getByRole('link', { name: 'Hires & payments' }).click()
   const contract = page.locator('.contract-card').filter({ hasText: '₹6,100' })
-  await contract.getByRole('button', { name: 'Mark as paid' }).click()
-  await expect(contract.getByText('Paid')).toBeVisible()
-  await contract.getByRole('button', { name: 'Leave a review' }).click()
+  await contract.getByRole('button', { name: 'Record payment sent' }).click()
+  await expect(contract.getByText('Waiting for the artisan to confirm receipt.')).toBeVisible()
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.getByRole('link', { name: 'Sign in' }).click()
+  await page.getByRole('button', { name: 'Enter as artisan' }).click()
+  await page.getByRole('link', { name: 'My agreements' }).click()
+  const artisanContract = page.locator('.contract-card').filter({ hasText: '6,100' })
+  await artisanContract.getByRole('button', { name: 'Confirm receipt' }).click()
+  await expect(artisanContract.getByText('Paid')).toBeVisible()
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.getByRole('link', { name: 'Sign in' }).click()
+  await page.getByRole('button', { name: 'Enter as employer' }).click()
+  await page.getByRole('link', { name: 'Hires & payments' }).click()
+  const paidContract = page.locator('.contract-card').filter({ hasText: '6,100' })
+  await expect(paidContract.getByText('Paid')).toBeVisible()
+  await paidContract.getByRole('button', { name: 'Leave a review' }).click()
   await page.getByLabel('Rating').selectOption('5')
   await page.getByLabel('Your feedback').fill('Beautiful work, delivered on time.')
   await page.getByRole('button', { name: 'Save review' }).click()
-  await expect(contract.getByText('Contract review')).toBeVisible()
+  await expect(paidContract.getByText('Contract review')).toBeVisible()
   expect(pageErrors).toEqual([])
 })
 

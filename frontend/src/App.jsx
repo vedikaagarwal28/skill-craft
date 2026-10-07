@@ -25,12 +25,14 @@ import {
 } from 'lucide-react'
 import {
   cancelGig,
+  confirmReceipt,
   currentUser,
   decideBid,
   demoMode,
   getArtisan,
   getArtisanReviews,
   getContracts,
+  getContractEvents,
   getGig,
   getMyBids,
   listArtisans,
@@ -156,6 +158,7 @@ function Card({ gig }) {
         <span className="category">{gig.skill}</span>
         <Status value={gig.status} />
       </div>
+      {gig.matchScore >= 2 && <span className="fit-note">Matches your skill profile</span>}
       <h3>{jobTitle(gig)}</h3>
       <p>{gig.description}</p>
       <div className="card-meta">
@@ -407,27 +410,22 @@ function Home() {
 }
 
 function Explore() {
-  const { data: loadedGigs, loading, error } = useData(() => listGigs(), [])
-  const gigs = loadedGigs || []
   const [query, setQuery] = useState('')
   const [skill, setSkill] = useState('All skills')
-  const [sort, setSort] = useState('newest')
+  const [sort, setSort] = useState('fit')
+  const { data: loadedGigs, loading, error } = useData(() => listGigs({ q: query, skill: skill === 'All skills' ? '' : skill }), [query, skill])
+  const gigs = loadedGigs || []
   const results = useMemo(
     () =>
       gigs
-        .filter(
-          (gig) =>
-            (skill === 'All skills' || gig.skill?.toLowerCase() === skill.toLowerCase()) &&
-            `${gig.skill} ${gig.address} ${gig.description}`
-              .toLowerCase()
-              .includes(query.toLowerCase()),
-        )
         .sort((a, b) =>
           sort === 'high'
             ? b.budget - a.budget
             : sort === 'low'
               ? a.budget - b.budget
-              : new Date(b.postedAt) - new Date(a.postedAt),
+              : sort === 'fit'
+                ? (b.matchScore - a.matchScore) || new Date(b.postedAt) - new Date(a.postedAt)
+                : new Date(b.postedAt) - new Date(a.postedAt),
         ),
     [gigs, query, skill, sort],
   )
@@ -467,6 +465,7 @@ function Explore() {
             value={sort}
             onChange={(event) => setSort(event.target.value)}
           >
+            <option value="fit">Best fit first</option>
             <option value="newest">Newest first</option>
             <option value="high">Highest budget</option>
             <option value="low">Lowest budget</option>
@@ -524,6 +523,7 @@ function ArtisanCard({ artisan }) {
         </span>
       </div>
       <h3>{artisan.name}</h3>
+      {artisan.matchScore >= 2 && <span className="fit-note">Fits an open job of yours</span>}
       <span className="category">{artisan.skill}</span>
       <p>
         <MapPin size={15} />
@@ -547,14 +547,10 @@ function ArtisanCard({ artisan }) {
 }
 
 function Artisans() {
-  const { data: loaded, loading, error } = useData(() => listArtisans(), [])
   const [query, setQuery] = useState('')
   const [skill, setSkill] = useState('All skills')
-  const artisans = (loaded || []).filter(
-    (item) =>
-      (skill === 'All skills' || item.skill?.toLowerCase() === skill.toLowerCase()) &&
-      `${item.name} ${item.location} ${item.skill}`.toLowerCase().includes(query.toLowerCase()),
-  )
+  const { data: loaded, loading, error } = useData(() => listArtisans({ q: query, skill: skill === 'All skills' ? '' : skill }), [query, skill])
+  const artisans = loaded || []
   return (
     <main className="page">
       <Title
@@ -1481,17 +1477,40 @@ function Contracts({ user }) {
   const [reviewId, setReviewId] = useState(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [history, setHistory] = useState({})
   async function pay(id) {
     setBusy(true)
     setMessage('')
     try {
       await markPaid(id)
-      setMessage('Payment recorded.')
+      setMessage('Payment sent recorded. The artisan can now confirm receipt.')
       await refresh()
     } catch (error) {
       setMessage(messageFrom(error))
     } finally {
       setBusy(false)
+    }
+  }
+  async function receive(id) {
+    setBusy(true)
+    setMessage('')
+    try {
+      await confirmReceipt(id)
+      setMessage('Receipt confirmed. This agreement is now marked paid.')
+      await refresh()
+    } catch (error) {
+      setMessage(messageFrom(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+  async function showHistory(id) {
+    try {
+      if (history[id]) { setHistory({ ...history, [id]: null }); return }
+      const events = await getContractEvents(id)
+      setHistory({ ...history, [id]: events })
+    } catch (error) {
+      setMessage(messageFrom(error))
     }
   }
   async function review(event) {
@@ -1511,7 +1530,7 @@ function Contracts({ user }) {
     }
   }
   return (
-    <main className="page">
+    <main className={`page contract-page contract-page-${user.role}`}>
       <Title
         eyebrow={user.role === 'artisan' ? 'YOUR WORK RECORD' : 'YOUR HIRING RECORD'}
         title={user.role === 'artisan' ? 'My agreements' : 'Hires & payments'}
@@ -1522,7 +1541,7 @@ function Contracts({ user }) {
         }
       />
       <Notice>{error}</Notice>
-      <Notice good={message.startsWith('Payment') || message.startsWith('Review')}>
+      <Notice good={message.startsWith('Payment') || message.startsWith('Receipt') || message.startsWith('Review')}>
         {message}
       </Notice>
       {loading ? (
@@ -1558,11 +1577,14 @@ function Contracts({ user }) {
                 </span>
                 <small>{shortDate(contract.createdAt)}</small>
               </div>
+              {contract.confirmationRequired && contract.paymentStatus === 'pending' && (
+                <p className="contract-step">{contract.employerPaidAt ? (user.role === 'artisan' ? 'Employer recorded payment. Confirm when you receive it.' : 'Waiting for the artisan to confirm receipt.') : (user.role === 'artisan' ? 'Waiting for the employer to record payment.' : 'Record payment after you send it to the artisan.')}</p>
+              )}
               {user.role === 'employer' && (
                 <div className="contract-actions">
-                  {contract.paymentStatus === 'pending' && (
+                  {contract.paymentStatus === 'pending' && !contract.employerPaidAt && (
                     <Button disabled={busy} onClick={() => pay(contract.id)}>
-                      Mark as paid <Check size={16} />
+                      Record payment sent <Check size={16} />
                     </Button>
                   )}
                   {contract.paymentStatus === 'paid' && !contract.rating && (
@@ -1577,6 +1599,11 @@ function Contracts({ user }) {
                   )}
                 </div>
               )}
+              {user.role === 'artisan' && contract.paymentStatus === 'pending' && contract.employerPaidAt && (
+                <div className="contract-actions"><Button disabled={busy} onClick={() => receive(contract.id)}>Confirm receipt <Check size={16} /></Button></div>
+              )}
+              <button className="history-toggle" onClick={() => showHistory(contract.id)}>{history[contract.id] ? 'Hide activity' : 'View activity'}</button>
+              {history[contract.id] && <ol className="contract-history">{history[contract.id].map((event) => <li key={event.event_id || `${event.event_type}-${event.created_at}`}><span>{event.event_type.replaceAll('_', ' ')}</span><small>{shortDate(event.created_at)}</small></li>)}</ol>}
             </article>
           ))}
         </div>

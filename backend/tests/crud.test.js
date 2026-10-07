@@ -146,7 +146,7 @@ describe('SkillCraft API - CRUD Tests', () => {
 
   test('3.2 - List open gigs', async () => {
     const res = await request(app)
-      .get('/api/gigs?skillRequired=Handloom')
+      .get('/api/gigs?skillRequired=Handloom%20Weaving')
       .set('Authorization', `Bearer ${artisanToken}`);
 
     expect(res.status).toBe(200);
@@ -229,7 +229,7 @@ describe('SkillCraft API - CRUD Tests', () => {
   // =========================================================================
   // Test 6: Payment & Review
   // =========================================================================
-  test('6.1 - Employer marks payment as settled', async () => {
+  test('6.1 - Employer records payment sent', async () => {
     const res = await request(app)
       .patch(`/api/contracts/${contractId}/pay`)
       .set('Authorization', `Bearer ${employerToken}`)
@@ -238,7 +238,17 @@ describe('SkillCraft API - CRUD Tests', () => {
       });
 
     expect(res.status).toBe(200);
+    expect(res.body.contract.payment_status).toBe('pending');
+    expect(res.body.contract.employer_paid_at).toBeTruthy();
+  });
+
+  test('6.1b - Artisan confirms receipt', async () => {
+    const res = await request(app)
+      .patch(`/api/contracts/${contractId}/confirm-receipt`)
+      .set('Authorization', `Bearer ${artisanToken}`);
+    expect(res.status).toBe(200);
     expect(res.body.contract.payment_status).toBe('paid');
+    expect(res.body.contract.artisan_received_at).toBeTruthy();
   });
 
   test('6.2 - Employer leaves a review', async () => {

@@ -11,6 +11,8 @@ erDiagram
     ARTISANS ||--o{ GIG_APPLICATIONS : submits
     ARTISANS ||--o{ COMPLETION_CONTRACTS : completes
     COMPLETION_CONTRACTS ||--o| RATINGS_REVIEWS : receives
+    COMPLETION_CONTRACTS ||--o{ CONTRACT_EVENTS : records
+    USERS ||--o{ CONTRACT_EVENTS : acts_in
 ```
 
 ---
@@ -33,7 +35,7 @@ Extends the USERS table with skill profile information. Every artisan record has
 - Base location (small town/village name)
 - Regional language
 - Hourly rate (checked to be > 0)
-- Trust score (0.00–5.00, cached from reviews on contracts marked paid by the employer)
+- Trust score (0.00–5.00, cached from reviews on paid contracts)
 
 **Cardinality:** One artisan can submit many applications (bids) on many gigs, and complete many contracts.
 
@@ -69,7 +71,7 @@ In-progress bids submitted by artisans on gigs. Represents the negotiation phase
 ### **COMPLETION_CONTRACTS**
 Accepted-work contracts. Created when a bid is accepted. Source of truth for:
 - Final negotiated amount (may differ from original bid)
-- Employer-recorded payment status: `pending` → `paid` or `disputed`
+- Payment status: `pending` → `paid` or `disputed`. New contracts require the employer's payment-sent timestamp and the artisan's receipt timestamp before `paid`.
 - Optional completion timestamp (not yet set through the UI)
 
 **Cardinality:** An open or cancelled gig has no contract. An accepted bid produces one contract for its gig; a unique constraint prevents a second contract for that gig. One artisan can have many contracts. The accepted application is linked to the contract through the gig and selected artisan, not by a direct foreign key.
@@ -77,7 +79,7 @@ Accepted-work contracts. Created when a bid is accepted. Source of truth for:
 ---
 
 ### **RATINGS_REVIEWS**
-Feedback left by employers after marking a contract paid. Drives the artisan's Trust_Score:
+Feedback left by employers after a contract becomes paid. Drives the artisan's Trust_Score:
 - Rating in stars (1–5)
 - Optional feedback text
 - One review per contract (enforced by UNIQUE constraint)
@@ -86,9 +88,14 @@ Feedback left by employers after marking a contract paid. Drives the artisan's T
 
 ---
 
+### **CONTRACT_EVENTS**
+Append-only events tied to a contract. An optional actor identifies who took each step; migrated historical paid rows receive a `legacy_record` event rather than an invented artisan confirmation. The database blocks updates and deletes to this table.
+
+---
+
 ## Normalization (3NF Justification)
 
-All six tables are in **Third Normal Form (3NF)**:
+The six core tables and the new event table follow **Third Normal Form (3NF)**:
 
 1. **No repeating groups** (1NF): All attributes are atomic; no multi-valued fields.
 2. **No partial dependencies** (2NF): All non-key attributes depend on the *entire* primary key, not just part of it.

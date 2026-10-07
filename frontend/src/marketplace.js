@@ -251,6 +251,7 @@ export function normaliseGig(row) {
     status: row.status,
     postedAt: date(row.postedAt ?? row.posted_date),
     bidCount: number(row.bidCount ?? row.pending_applications),
+    matchScore: number(row.matchScore ?? row.match_score),
   }
 }
 
@@ -286,6 +287,9 @@ function normaliseContract(row) {
     createdAt: date(row.createdAt ?? row.created_at),
     rating: row.rating ?? row.rating_stars,
     partnerPhone: row.partnerPhone ?? row.partner_phone,
+    employerPaidAt: row.employerPaidAt ?? row.employer_paid_at,
+    artisanReceivedAt: row.artisanReceivedAt ?? row.artisan_received_at,
+    confirmationRequired: row.confirmationRequired ?? row.confirmation_required ?? false,
   }
 }
 
@@ -300,6 +304,7 @@ function normaliseArtisan(row) {
     trustScore: number(row.trustScore ?? row.trust_score),
     contracts: number(row.contracts ?? row.total_contracts_completed),
     reviews: number(row.reviews ?? row.total_reviews),
+    matchScore: number(row.matchScore ?? row.match_score),
   }
 }
 
@@ -386,25 +391,27 @@ export async function register(details) {
   return user
 }
 
-export async function listGigs({ mine = false } = {}) {
+export async function listGigs({ mine = false, q = '', skill = '' } = {}) {
   if (demoMode) {
     const state = getState()
     const user = currentUser()
     return state.gigs
       .filter((gig) => (mine ? gig.employerId === user?.id : gig.status === 'open'))
+      .filter((gig) => !skill || gig.skill.toLowerCase() === skill.toLowerCase())
+      .filter((gig) => !q || `${gig.skill} ${gig.address} ${gig.description}`.toLowerCase().includes(q.toLowerCase()))
       .map((gig) => ({
         ...gig,
         bidCount: state.bids.filter((bid) => bid.gigId === gig.id && bid.status === 'pending')
           .length,
       }))
   }
-  const { data } = await api.get(mine ? '/gigs/mine' : '/gigs')
+  const { data } = await api.get(mine ? '/gigs/mine' : '/gigs', { params: mine ? {} : { q, skillRequired: skill } })
   return data.map(normaliseGig)
 }
 
-export async function listArtisans() {
-  if (demoMode) return demoArtisans.map(normaliseArtisan)
-  const { data } = await api.get('/artisans')
+export async function listArtisans({ q = '', skill = '' } = {}) {
+  if (demoMode) return demoArtisans.filter((artisan) => (!skill || artisan.skill.toLowerCase() === skill.toLowerCase()) && (!q || `${artisan.name} ${artisan.skill} ${artisan.location}`.toLowerCase().includes(q.toLowerCase()))).map(normaliseArtisan)
+  const { data } = await api.get('/artisans', { params: { q, skillCategory: skill } })
   return data.map(normaliseArtisan)
 }
 
@@ -579,6 +586,10 @@ export async function decideBid(bidId, decision) {
         employerName: gig.employerName,
         amount: bid.amount,
         paymentStatus: 'pending',
+        confirmationRequired: true,
+        employerPaidAt: null,
+        artisanReceivedAt: null,
+        events: [{ event_type: 'contract_created', created_at: new Date().toISOString() }],
         skill: gig.skill,
         address: gig.address,
         createdAt: new Date().toISOString(),
@@ -622,12 +633,36 @@ export async function markPaid(contractId) {
     const contract = state.contracts.find((item) => item.id === number(contractId))
     if (!contract || contract.employerId !== currentUser()?.id)
       throw new Error('You cannot update this payment.')
-    contract.paymentStatus = 'paid'
+    if (contract.employerPaidAt) throw new Error('Payment has already been recorded.')
+    contract.employerPaidAt = new Date().toISOString()
+    contract.events = [...(contract.events || []), { event_type: 'payment_sent', created_at: contract.employerPaidAt }]
     saveState(state)
     return contract
   }
   const { data } = await api.patch(`/contracts/${contractId}/pay`, { paymentStatus: 'paid' })
   return normaliseContract(data.contract)
+}
+
+export async function confirmReceipt(contractId) {
+  if (demoMode) {
+    const state = getState()
+    const contract = state.contracts.find((item) => item.id === number(contractId))
+    if (!contract || contract.artisanId !== currentUser()?.id || !contract.employerPaidAt || contract.artisanReceivedAt)
+      throw new Error('Receipt cannot be confirmed yet.')
+    contract.artisanReceivedAt = new Date().toISOString()
+    contract.paymentStatus = 'paid'
+    contract.events = [...(contract.events || []), { event_type: 'receipt_confirmed', created_at: contract.artisanReceivedAt }, { event_type: 'payment_confirmed', created_at: contract.artisanReceivedAt }]
+    saveState(state)
+    return normaliseContract(contract)
+  }
+  const { data } = await api.patch(`/contracts/${contractId}/confirm-receipt`)
+  return normaliseContract(data.contract)
+}
+
+export async function getContractEvents(contractId) {
+  if (demoMode) return getState().contracts.find((item) => item.id === number(contractId))?.events || []
+  const { data } = await api.get(`/contracts/${contractId}/events`)
+  return data
 }
 
 export async function reviewContract(contractId, ratingStars, feedbackText) {

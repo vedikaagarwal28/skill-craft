@@ -10,7 +10,7 @@ const database = path.resolve(here, '../../database');
 const db = await PGlite.create();
 
 try {
-  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql']) {
+  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql', '09_dbthon_workflow.sql']) {
     await db.exec(await readFile(path.join(database, file), 'utf8'));
   }
 
@@ -43,7 +43,29 @@ try {
   assert.equal(contract.rows[0].count, 1);
   assert.equal(competingBid.rows[0].application_status, 'rejected');
 
-  console.log('Schema, seed accounts, employer ownership, and bid acceptance trigger passed.');
+  const legacy = await db.query(`SELECT COUNT(*)::int AS count FROM COMPLETION_CONTRACTS
+    WHERE Payment_Status = 'paid' AND Confirmation_Required = FALSE`);
+  assert.equal(legacy.rows[0].count, 8);
+  const audit = await db.query(`SELECT COUNT(*)::int AS count FROM CONTRACT_EVENTS`);
+  assert.ok(audit.rows[0].count >= 9);
+  await assert.rejects(db.query('DELETE FROM CONTRACT_EVENTS WHERE Event_ID = 1'), /append-only/);
+
+  const lakshmiId = (await db.query("SELECT User_ID FROM USERS WHERE Email = 'lakshmi@skillcraft.local'")).rows[0].user_id;
+  await db.exec('BEGIN');
+  try {
+    await db.exec('SET LOCAL ROLE skillcraft_runtime');
+    await db.query("SELECT set_config('app.user_id', $1, true)", [String(lakshmiId)]);
+    await db.query("SELECT set_config('app.user_role', 'artisan', true)");
+    const visibleBids = await db.query('SELECT COUNT(*)::int AS count FROM GIG_APPLICATIONS');
+    const ownBids = await db.query(`SELECT COUNT(*)::int AS count FROM GIG_APPLICATIONS ga
+      JOIN ARTISANS a ON a.Artisan_ID = ga.Artisan_ID WHERE a.User_ID = $1`, [lakshmiId]);
+    assert.equal(visibleBids.rows[0].count, ownBids.rows[0].count);
+    await assert.rejects(db.query('UPDATE ARTISANS SET Trust_Score = 5 WHERE User_ID = $1', [lakshmiId]), /permission denied/);
+  } finally {
+    await db.exec('ROLLBACK');
+  }
+
+  console.log('Schema, legacy provenance, append-only audit, row ownership, and bid acceptance passed.');
 } finally {
   await db.close();
 }

@@ -14,7 +14,7 @@ for (const suite of ['crud.test.js', 'bidAcceptance.test.js']) {
   const db = await PGlite.create();
   let socket;
   try {
-    for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '06_proposal_note.sql', '08_unique_contracts.sql']) {
+    for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '06_proposal_note.sql', '08_unique_contracts.sql', '09_dbthon_workflow.sql']) {
       await db.exec(await readFile(path.join(databaseDir, file), 'utf8'));
     }
     socket = new PGLiteSocketServer({ db, host: '127.0.0.1', port: 5545 });

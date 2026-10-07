@@ -32,12 +32,11 @@ export const getArtisanProfile = async (req, res) => {
          a.hourly_rate,
          a.trust_score,
          a.created_at,
-         (SELECT COUNT(*) FROM COMPLETION_CONTRACTS WHERE Selected_Artisan_ID = a.artisan_id) as total_contracts_completed,
-         (SELECT COUNT(*) FROM RATINGS_REVIEWS rr 
-          JOIN COMPLETION_CONTRACTS cc ON rr.contract_id = cc.contract_id
-          WHERE cc.selected_artisan_id = a.artisan_id) as total_reviews
+         stats.total_contracts_completed,
+         stats.total_reviews
        FROM ARTISANS a
        JOIN USERS u ON a.user_id = u.user_id
+       JOIN Artisan_Public_Stats stats ON stats.artisan_id = a.artisan_id
        WHERE a.artisan_id = $1`,
       [id]
     );
@@ -137,7 +136,7 @@ export const updateArtisanProfile = async (req, res) => {
  */
 export const listArtisans = async (req, res) => {
   try {
-    const { skillCategory, baseLocation, sortBy = 'trustScore', limit = 50 } = req.query;
+    const { skillCategory, baseLocation, q, sortBy = 'trustScore', limit = 50 } = req.query;
 
     let sql = `SELECT
       a.artisan_id,
@@ -148,29 +147,38 @@ export const listArtisans = async (req, res) => {
       a.region_language,
       a.hourly_rate,
       a.trust_score,
-      (SELECT COUNT(*) FROM COMPLETION_CONTRACTS WHERE Selected_Artisan_ID = a.artisan_id) as total_contracts_completed,
-      (SELECT COUNT(*) FROM RATINGS_REVIEWS rr
-       JOIN COMPLETION_CONTRACTS cc ON rr.Contract_ID = cc.Contract_ID
-       WHERE cc.Selected_Artisan_ID = a.Artisan_ID AND cc.Payment_Status = 'paid') as total_reviews
+      CASE WHEN app_actor_role() = 'employer' THEN COALESCE((
+        SELECT MAX(CASE WHEN LOWER(g.skill_required) = LOWER(a.skill_category) THEN 2 ELSE 0 END +
+          CASE WHEN split_part(LOWER(g.address), ',', 1) = split_part(LOWER(a.base_location), ',', 1) THEN 1 ELSE 0 END)
+        FROM GIG_POSTINGS g WHERE g.employer_user_id = app_actor_id() AND g.status = 'open'
+      ), 0) ELSE 0 END AS match_score,
+      stats.total_contracts_completed,
+      stats.total_reviews
      FROM ARTISANS a
      JOIN USERS u ON a.user_id = u.user_id
+     JOIN Artisan_Public_Stats stats ON stats.artisan_id = a.artisan_id
      WHERE 1=1`;
 
     const params = [];
 
     if (skillCategory) {
-      sql += ` AND a.skill_category ILIKE $${params.length + 1}`;
-      params.push(`%${skillCategory}%`);
+      sql += ` AND LOWER(a.skill_category) = LOWER($${params.length + 1})`;
+      params.push(skillCategory);
     }
 
     if (baseLocation) {
-      sql += ` AND a.base_location ILIKE $${params.length + 1}`;
-      params.push(`%${baseLocation}%`);
+      sql += ` AND to_tsvector('simple', COALESCE(a.skill_category, '') || ' ' || COALESCE(a.base_location, '')) @@ websearch_to_tsquery('simple', $${params.length + 1})`;
+      params.push(baseLocation);
+    }
+
+    if (q?.trim()) {
+      sql += ` AND (to_tsvector('simple', COALESCE(a.skill_category, '') || ' ' || COALESCE(a.base_location, '')) @@ websearch_to_tsquery('simple', $${params.length + 1}) OR u.full_name ILIKE $${params.length + 2})`;
+      params.push(q.trim(), `%${q.trim()}%`);
     }
 
     // Sorting
     if (sortBy === 'trustScore') {
-      sql += ' ORDER BY a.trust_score DESC';
+      sql += ' ORDER BY match_score DESC, a.trust_score DESC';
     } else if (sortBy === 'hourlyRate') {
       sql += ' ORDER BY a.hourly_rate DESC';
     } else {
@@ -178,7 +186,7 @@ export const listArtisans = async (req, res) => {
     }
 
     sql += ` LIMIT $${params.length + 1}`;
-    params.push(parseInt(limit) || 50);
+    params.push(Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100));
 
     const result = await query(sql, params);
     res.json(result.rows);

@@ -7,6 +7,7 @@
 
 import pg from 'pg';
 import dotenv from 'dotenv';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 dotenv.config();
 
@@ -30,6 +31,18 @@ if (process.env.NODE_ENV === 'test') {
 
 // Create connection pool
 const pool = new Pool(dbConfig);
+const actorScope = new AsyncLocalStorage();
+
+export const withActorContext = (req, next) =>
+  actorScope.run({ userId: req.user?.userId || '', role: req.user?.role || 'guest' }, next);
+
+async function applyActorContext(client, actor) {
+  await client.query('SET LOCAL ROLE skillcraft_runtime');
+  await client.query(
+    "SELECT set_config('app.user_id', $1, true), set_config('app.user_role', $2, true)",
+    [String(actor.userId), actor.role]
+  );
+}
 
 // Log connection pool info
 pool.on('connect', () => {
@@ -47,8 +60,23 @@ pool.on('error', (err) => {
  * @param {array} params - Query parameters
  * @returns {Promise} Query result
  */
-export const query = (text, params) => {
-  return pool.query(text, params);
+export const query = async (text, params) => {
+  const actor = actorScope.getStore();
+  if (!actor) return pool.query(text, params);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await applyActorContext(client, actor);
+    const result = await client.query(text, params);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch { /* preserve the original error */ }
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 /**
@@ -56,7 +84,19 @@ export const query = (text, params) => {
  * @returns {Promise} Client object
  */
 export const getClient = async () => {
-  return pool.connect();
+  const client = await pool.connect();
+  const actor = actorScope.getStore();
+  if (!actor) return client;
+  return {
+    query: async (...args) => {
+      const result = await client.query(...args);
+      if (typeof args[0] === 'string' && /^\s*BEGIN\b/i.test(args[0])) {
+        await applyActorContext(client, actor);
+      }
+      return result;
+    },
+    release: () => client.release(),
+  };
 };
 
 /**

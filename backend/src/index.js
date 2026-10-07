@@ -16,8 +16,8 @@ import artisansRoutes from './routes/artisans.routes.js';
 import gigsRoutes from './routes/gigs.routes.js';
 import applicationsRoutes from './routes/applications.routes.js';
 import combinedRoutes from './routes/combined.routes.js';
-import { authenticateToken } from './middleware/auth.js';
-import { closePool } from './db.js';
+import { optionalAuthentication } from './middleware/auth.js';
+import { closePool, withActorContext } from './db.js';
 
 dotenv.config();
 
@@ -55,6 +55,10 @@ app.get('/health', (req, res) => {
 
 // Public auth routes (no JWT required)
 app.use('/api/auth', authRoutes);
+
+// Every marketplace query runs as a restricted PostgreSQL role with request-
+// local actor settings. Auth endpoints use the owner account for login/signup.
+app.use('/api', optionalAuthentication, (req, res, next) => withActorContext(req, next));
 
 // Artisans routes
 app.use('/api/artisans', artisansRoutes);

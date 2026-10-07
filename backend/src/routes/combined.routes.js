@@ -3,7 +3,7 @@
 // ============================================================================
 
 import express from 'express';
-import { getMyContracts, markPaymentSettled } from '../controllers/contracts.controller.js';
+import { getMyContracts, markPaymentSettled, confirmReceipt, getContractEvents } from '../controllers/contracts.controller.js';
 import { postReview, getArtisanReviews } from '../controllers/reviews.controller.js';
 import { getTopArtisans, getSkillEarnings, getOpenGigs } from '../controllers/dashboard.controller.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -15,10 +15,12 @@ const router = express.Router();
 // Contracts Routes
 // ============================================================================
 router.get('/contracts/mine', authenticateToken, getMyContracts);
+router.get('/contracts/:id/events', authenticateToken, getContractEvents);
+router.patch('/contracts/:id/confirm-receipt', authenticateToken, requireRole('artisan'), confirmReceipt);
 router.patch(
   '/contracts/:id/pay',
   authenticateToken,
-  requireRole('employer', 'admin'),
+  requireRole('employer'),
   markPaymentSettled
 );
 

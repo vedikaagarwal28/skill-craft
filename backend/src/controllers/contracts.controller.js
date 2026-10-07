@@ -28,12 +28,15 @@ export const getMyContracts = async (req, res) => {
         cc.gig_id,
         cc.final_amount,
         cc.payment_status,
+        cc.employer_paid_at,
+        cc.artisan_received_at,
+        cc.confirmation_required,
         cc.completion_timestamp,
         cc.created_at,
         gp.skill_required,
         gp.address,
         u.full_name as employer_name,
-        u.phone as partner_phone,
+        contract_partner_phone(u.user_id) as partner_phone,
         rr.rating_stars,
         rr.feedback_text
        FROM COMPLETION_CONTRACTS cc
@@ -50,13 +53,16 @@ export const getMyContracts = async (req, res) => {
         cc.gig_id,
         cc.final_amount,
         cc.payment_status,
+        cc.employer_paid_at,
+        cc.artisan_received_at,
+        cc.confirmation_required,
         cc.completion_timestamp,
         cc.created_at,
         gp.skill_required,
         gp.address,
         a.user_id as artisan_user_id,
         u.full_name as artisan_name,
-        u.phone as partner_phone,
+        contract_partner_phone(u.user_id) as partner_phone,
         a.trust_score,
         rr.rating_stars,
         rr.review_date
@@ -105,7 +111,7 @@ export const markPaymentSettled = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    if (req.user.role !== 'employer' && req.user.role !== 'admin') {
+    if (req.user.role !== 'employer') {
       return res.status(403).json({ error: 'Only employers can mark payments' });
     }
 
@@ -122,46 +128,53 @@ export const markPaymentSettled = async (req, res) => {
       return res.status(400).json({ error: 'Invalid contract ID' });
     }
 
-    // Get contract and check ownership
-    const contractResult = await query(
-      `SELECT cc.*, gp.employer_user_id
-       FROM COMPLETION_CONTRACTS cc
-       JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
-       WHERE cc.contract_id = $1`,
-      [contractId]
-    );
-
-    if (contractResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Contract not found' });
-    }
-
-    const contract = contractResult.rows[0];
-
-    if (req.user.role !== 'admin' && req.user.userId !== contract.employer_user_id) {
-      return res.status(403).json({
-        error: 'Can only manage payments for own contracts',
-      });
-    }
-
-    if (contract.payment_status !== 'pending') {
-      return res.status(409).json({ error: 'This payment has already been updated' });
-    }
-
-    // Update payment status
-    const result = await query(
-      `UPDATE COMPLETION_CONTRACTS 
-       SET Payment_Status = $1, Updated_At = CURRENT_TIMESTAMP
-       WHERE Contract_ID = $2
-       RETURNING *`,
-      [paymentStatus, contractId]
-    );
+    const functionName = paymentStatus === 'disputed'
+      ? 'dispute_contract_payment' : 'record_employer_payment';
+    const result = await query(`SELECT * FROM ${functionName}($1)`, [contractId]);
 
     res.json({
-      message: `Payment marked as ${paymentStatus}`,
+      message: paymentStatus === 'paid'
+        ? 'Payment sent recorded; awaiting artisan receipt confirmation'
+        : 'Payment dispute recorded',
       contract: result.rows[0],
     });
   } catch (err) {
     console.error('Error updating payment:', err);
-    res.status(500).json({ error: 'Failed to update payment status' });
+    res.status(err.code === 'P0002' ? 404 : err.code === '42501' ? 403 : err.code === 'P0001' ? 409 : 500)
+      .json({ error: err.code === 'P0002' || err.code === '42501' || err.code === 'P0001'
+        ? err.message : 'Failed to update payment status' });
+  }
+};
+
+/** The selected artisan acknowledges receiving payment; this is not bank verification. */
+export const confirmReceipt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || isNaN(id)) return res.status(400).json({ error: 'Invalid contract ID' });
+    const result = await query('SELECT * FROM confirm_artisan_receipt($1)', [id]);
+    res.json({ message: 'Receipt confirmed by artisan', contract: result.rows[0] });
+  } catch (err) {
+    console.error('Error confirming receipt:', err);
+    res.status(err.code === 'P0002' ? 404 : err.code === '42501' ? 403 : err.code === 'P0001' ? 409 : 500)
+      .json({ error: err.code === 'P0002' || err.code === '42501' || err.code === 'P0001'
+        ? err.message : 'Failed to confirm receipt' });
+  }
+};
+
+/** Parties to a contract can inspect its append-only database history. */
+export const getContractEvents = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id || isNaN(id)) return res.status(400).json({ error: 'Invalid contract ID' });
+    const contract = await query('SELECT Contract_ID FROM COMPLETION_CONTRACTS WHERE Contract_ID = $1', [id]);
+    if (!contract.rows.length) return res.status(404).json({ error: 'Contract not found' });
+    const events = await query(
+      'SELECT Event_ID, Contract_ID, Actor_User_ID, Event_Type, Event_Detail, Created_At FROM CONTRACT_EVENTS WHERE Contract_ID = $1 ORDER BY Event_ID',
+      [id]
+    );
+    res.json(events.rows);
+  } catch (err) {
+    console.error('Error reading contract history:', err);
+    res.status(500).json({ error: 'Failed to read contract history' });
   }
 };

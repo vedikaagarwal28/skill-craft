@@ -1252,6 +1252,37 @@ textarea:focus-visible {
   background: #fff;
   border: 1px solid #dfe6dc;
 }
+.fit-note { display: inline-block; margin-top: 10px; color: #56785f; font-size: 11px; letter-spacing: .01em; }
+.contract-page-artisan .contract-card { border-top: 3px solid #7f9d86; }
+.contract-page-employer .contract-card { border-top: 3px solid #b68d70; }
+.contract-card > .contract-step {
+  display: block;
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  background: #f5f7f2;
+  color: #536552;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.history-toggle {
+  margin-top: 17px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #526850;
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.contract-history {
+  margin: 12px 0 0;
+  padding: 0 0 0 18px;
+  color: #536552;
+  font-size: 11px;
+}
+.contract-history li { padding: 4px 0; }
+.contract-history small { margin-left: 8px; color: #829181; }
 .contract-top {
   display: flex;
   justify-content: space-between;

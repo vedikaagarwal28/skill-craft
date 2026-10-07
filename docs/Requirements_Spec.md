@@ -61,14 +61,15 @@ This is the original functional specification, updated for the current prototype
 | FR-CON-1 | Contract auto-created when bid accepted (records final negotiated amount, payment status) | HIGH |
 | FR-CON-2 | Artisan and employer can view contract history | HIGH |
 | FR-CON-3 | Payment status tracked: 'pending', 'paid', or 'disputed' | HIGH |
-| FR-CON-4 | Employer can mark payment as 'paid' or 'disputed' | HIGH |
+| FR-CON-4 | Employer records payment sent; selected artisan confirms receipt before a new contract becomes paid | HIGH |
+| FR-CON-6 | Contract event history is append-only and visible to its parties | HIGH |
 | FR-CON-5 | Planned: employer can set a separate work-completion timestamp | MEDIUM |
 
 ### 1.6 Reviews & Trust Score
 
 | Req | Description | Priority |
 |---|---|---|
-| FR-REV-1 | Employer can leave a 1–5 star review after recording the contract as paid | HIGH |
+| FR-REV-1 | Employer can leave a 1–5 star review after a contract becomes paid; new contracts need both payment acknowledgments | HIGH |
 | FR-REV-2 | Employer can add optional feedback text with review | MEDIUM |
 | FR-REV-3 | Each contract can have at most one review (enforced by UNIQUE constraint) | HIGH |
 | **FR-REV-4** | **Trust score auto-recalculated after each review via trigger using paid-status reviews and a three-review prior** | **CRITICAL** |
@@ -91,7 +92,8 @@ This is the original functional specification, updated for the current prototype
 | FR-RBAC-1 | Artisan can submit bids and view own bids/contracts; public artisan profiles and reviews are readable by all | HIGH |
 | FR-RBAC-2 | Employer can only: post gigs, view own gigs, accept/reject bids on own gigs, view own contracts, leave reviews | HIGH |
 | FR-RBAC-3 | Planned: admin deactivation and dispute-resolution tools; seeded admin role is for demonstration only | MEDIUM |
-| FR-RBAC-4 | Attempting to access unauthorized resource returns 403 Forbidden | HIGH |
+| FR-RBAC-4 | Unauthorized actions return 403; another owner's hidden private row may return 404 | HIGH |
+| FR-RBAC-5 | Restricted runtime database role and row-level policies enforce private-row ownership | HIGH |
 
 ---
 

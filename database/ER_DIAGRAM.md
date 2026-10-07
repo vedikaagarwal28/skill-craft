@@ -1,6 +1,13 @@
 # SkillCraft Micro-Jobs: Entity-Relationship Diagram
 
-## Mermaid ER Diagram
+## ER diagram
+
+![SkillCraft ER diagram showing seven tables and their primary/foreign-key relationships](../docs/skillcraft-er-diagram.svg)
+
+[Open full-size SVG](../docs/skillcraft-er-diagram.svg)
+
+<details>
+<summary>Relationship-only Mermaid version</summary>
 
 ```mermaid
 erDiagram
@@ -14,6 +21,8 @@ erDiagram
     COMPLETION_CONTRACTS ||--o{ CONTRACT_EVENTS : records
     USERS ||--o{ CONTRACT_EVENTS : acts_in
 ```
+
+</details>
 
 ---
 
@@ -95,7 +104,7 @@ Append-only events tied to a contract. An optional actor identifies who took eac
 
 ## Normalization (3NF Justification)
 
-The six core tables and the new event table follow **Third Normal Form (3NF)**:
+The six core tables are analyzed for **Third Normal Form (3NF)** in the [normalization guide](../docs/Normalization_Justification.md). The event table's relational columns depend on `Event_ID`; its JSONB detail is occasional metadata and would need typed fields if used for routine analysis.
 
 1. **No repeating groups** (1NF): All attributes are atomic; no multi-valued fields.
 2. **No partial dependencies** (2NF): All non-key attributes depend on the *entire* primary key, not just part of it.

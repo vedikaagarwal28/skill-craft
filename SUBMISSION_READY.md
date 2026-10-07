@@ -18,11 +18,11 @@ These are synthetic sample accounts. The backend accepts either email or phone a
 1. Ramesh posts a job and Lakshmi finds it and bids.
 2. Ramesh accepts one bid. Show the accepted application, closed gig, and one contract in SQL.
 3. Show that another pending bid is rejected, or cancel a separate open job and show its pending bids become rejected.
-4. Ramesh records payment status and writes a review. Show the trigger-updated trust score.
-5. Explain the transaction, `SELECT ... FOR UPDATE`, unique constraints, and role/ownership checks.
+4. Ramesh records payment sent; Lakshmi confirms receipt. Inspect the append-only `CONTRACT_EVENTS` history, then have Ramesh review the paid contract.
+5. Show the trigger-updated trust score. Explain the transaction, `SELECT ... FOR UPDATE`, unique constraints, indexed matching, and row-level ownership rules.
 
 ## Checks and open evidence
 
 Run `npm test` and `npm run test:jest-local` from `backend`, then `npm run build` and `npm run test:e2e` from `frontend`. The [testing report](docs/Testing_Validation_Report.md) lists exact scope; the native PostgreSQL/Jest variant remains available separately.
 
-Before claiming a DBTHON score for novelty or measured improvement, choose a database innovation, define a conventional baseline, gather repeatable results, and verify any outside research or impact figures. The app has no escrow, real payment integration, independent payment proof, field pilot, or measured earnings uplift. The final PPT should reflect only evidence available at presentation time.
+The [current panel deck](docs/SkillCraft_DBTHON_2026_Panel.pptx) presents the implemented innovation and the rubric. Before claiming measured improvement, compare indexed search and ranking with a defined baseline on a repeatable dataset. The app has no escrow, real payment integration, independent bank proof, field pilot, or measured earnings uplift.

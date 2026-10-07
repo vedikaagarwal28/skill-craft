@@ -3,6 +3,9 @@
 -- BCSE302P – Database Systems Lab, Societal Digital Innovation Project
 -- ============================================================================
 -- This schema implements six entities normalized to Third Normal Form (3NF).
+-- The current prototype also applies 06_proposal_note.sql, 08_unique_contracts.sql,
+-- and 09_dbthon_workflow.sql; migration 09 adds contract events, two-party
+-- payment acknowledgement, indexed matching, and row-level security.
 -- All foreign keys use explicit ON DELETE/UPDATE rules for data integrity.
 -- Every table has meaningful UNIQUE, CHECK, NOT NULL, and default constraints.
 -- Indexes are added for common query patterns (skill matching, gig status, etc.).

@@ -2,7 +2,11 @@
 
 **A local-work marketplace built around a relational database.** Employers post jobs, artisans bid, and one accepted bid becomes a contract. The database keeps the job, competing bids, contract, payment-status record, and review consistent as work moves through that sequence.
 
-This branch is a **DBTHON 2026 prototype proposal**. It is separate from `main`. [Home](docs/marketplace-v2-home.png) · [Artisan directory](docs/marketplace-v2-artisans.png) · [Artisan workspace](docs/marketplace-v2-dashboard.png)
+This branch is the **working DBTHON 2026 prototype**, separate from `main`. [Editable panel slides](docs/SkillCraft_DBTHON_2026_Panel.pptx) · [View slides as PDF](docs/SkillCraft_DBTHON_2026_Panel.pdf) · [ER diagram](docs/skillcraft-er-diagram.svg) · [Home](docs/marketplace-v2-home.png) · [Artisan directory](docs/marketplace-v2-artisans.png) · [Artisan workspace](docs/marketplace-v2-dashboard.png)
+
+![SkillCraft ER diagram with seven tables, primary and foreign keys, and relationship cardinalities](docs/skillcraft-er-diagram.svg)
+
+[Open the full-size diagram](docs/skillcraft-er-diagram.svg) · [Read the table-by-table explanation](database/ER_DIAGRAM.md)
 
 ## The problem and the database idea
 
@@ -14,7 +18,7 @@ The app does **not** transfer or independently verify money, hold escrow, resolv
 
 ## DBTHON 2026 rubric: what to show
 
-**October 2026 update:** [Migration 09](database/09_dbthon_workflow.sql) adds a seventh table, `CONTRACT_EVENTS`, for append-only contract history; two-party payment acknowledgment for new contracts; indexed skill and location search with a transparent fit score; and row-level security under the restricted API database role. Previously paid seed rows remain labeled legacy because no artisan confirmation was recorded. Neither acknowledgment verifies a bank transfer. The final PPT is intentionally held pending further changes.
+**October 2026 update:** [Migration 09](database/09_dbthon_workflow.sql) adds a seventh table, `CONTRACT_EVENTS`, for append-only contract history; two-party payment acknowledgment for new contracts; indexed skill and location search with a transparent fit score; and row-level security under the restricted API database role. Previously paid seed rows remain labeled legacy because no artisan confirmation was recorded. Neither acknowledgment verifies a bank transfer. The [latest panel deck](docs/SkillCraft_DBTHON_2026_Panel.pptx) reflects this version.
 
 The challenge PDF gives 30 marks across the eight components below. “Evidence now” points to inspectable implementation; “Still needed” is work to agree and measure before the final presentation.
 
@@ -31,7 +35,7 @@ The challenge PDF gives 30 marks across the eight components below. “Evidence 
 
 ### Suggested panel demonstration
 
-1. Show the [ER diagram](database/ER_DIAGRAM.md): an employer posts a job; multiple artisans can bid; one accepted bid creates one contract; a paid-status contract can receive one review.
+1. Show the [ER diagram](docs/skillcraft-er-diagram.svg): an employer posts a job; multiple artisans can bid; one accepted bid creates one contract; a paid-status contract can receive one review.
 2. Log in as Ramesh and post a job. Log in as Lakshmi to find it and bid. Return as Ramesh to accept a bid. Show that the gig closes and competing pending bids are rejected.
 3. Show the corresponding rows in `GIG_POSTINGS`, `GIG_APPLICATIONS`, and `COMPLETION_CONTRACTS`; point to the trigger and unique constraints that maintain the relationship.
 4. Record payment sent as Ramesh, confirm receipt as Lakshmi, inspect `CONTRACT_EVENTS`, add a review, then query the artisan's updated `Trust_Score`. Explain that payment is self-reported by both parties.
@@ -49,7 +53,7 @@ The challenge PDF gives 30 marks across the eight components below. “Evidence 
 | `RATINGS_REVIEWS` | One employer review per contract |
 | `CONTRACT_EVENTS` | Append-only history of contract creation, payment sent, receipt, dispute, and review |
 
-The tables are documented as third normal form in [Normalization Justification](docs/Normalization_Justification.md). `ARTISANS.Trust_Score` is deliberately cached derived data; the review trigger updates it. The [SQL implementation](database/02_03_views_triggers_procedures.sql) also defines `Top_Rated_Artisans_View`, `Skill_Category_Earnings_View`, and `Open_Gigs_View` for read-oriented queries.
+The six core tables are analyzed for third normal form in [Normalization Justification](docs/Normalization_Justification.md), which also explains the event table's JSONB metadata trade-off. `ARTISANS.Trust_Score` is deliberately cached derived data; the review trigger updates it. The [SQL implementation](database/02_03_views_triggers_procedures.sql) also defines `Top_Rated_Artisans_View`, `Skill_Category_Earnings_View`, and `Open_Gigs_View` for read-oriented queries.
 
 The stack is PostgreSQL-compatible SQL for data, Node.js/Express for the API, and React/Vite for the interface. The API uses the `pg` driver with parameterized SQL. Local preview uses PGlite to run the same schema; the Docker configuration uses PostgreSQL 15.
 

@@ -1,18 +1,28 @@
 # SkillCraft Micro-Jobs: Entity-Relationship Diagram
 
-## Mermaid ER Diagram
+## ER diagram
+
+![SkillCraft ER diagram showing seven tables and their primary/foreign-key relationships](../docs/skillcraft-er-diagram.svg)
+
+[Open full-size SVG](../docs/skillcraft-er-diagram.svg)
+
+<details>
+<summary>Relationship-only Mermaid version</summary>
 
 ```mermaid
 erDiagram
-    USERS ||--o{ ARTISANS : has
+    USERS ||--o| ARTISANS : has
     USERS ||--o{ GIG_POSTINGS : posts
     GIG_POSTINGS ||--o{ GIG_APPLICATIONS : receives
-    GIG_POSTINGS ||--|| COMPLETION_CONTRACTS : results_in
-    GIG_APPLICATIONS ||--|| COMPLETION_CONTRACTS : becomes
+    GIG_POSTINGS ||--o| COMPLETION_CONTRACTS : results_in
     ARTISANS ||--o{ GIG_APPLICATIONS : submits
     ARTISANS ||--o{ COMPLETION_CONTRACTS : completes
     COMPLETION_CONTRACTS ||--o| RATINGS_REVIEWS : receives
+    COMPLETION_CONTRACTS ||--o{ CONTRACT_EVENTS : records
+    USERS ||--o{ CONTRACT_EVENTS : acts_in
 ```
+
+</details>
 
 ---
 
@@ -22,7 +32,7 @@ erDiagram
 The unified identity table for all platform participants. Stores login credentials (phone + password hash) and role assignment. Three roles:
 - **artisan**: Can browse gigs, submit bids, complete work, receive ratings
 - **employer**: Can post gigs, review applications, accept bids, leave ratings
-- **admin**: Full read access to all tables, can deactivate users
+- **admin**: Seeded demonstration role; user deactivation is not implemented
 
 **Cardinality:** One user can be linked to at most one artisan profile (if they are an artisan), or multiple gig postings (if they are an employer).
 
@@ -34,7 +44,7 @@ Extends the USERS table with skill profile information. Every artisan record has
 - Base location (small town/village name)
 - Regional language
 - Hourly rate (checked to be > 0)
-- Trust score (0.00–5.00, computed from verified reviews)
+- Trust score (0.00–5.00, cached from reviews on paid contracts)
 
 **Cardinality:** One artisan can submit many applications (bids) on many gigs, and complete many contracts.
 
@@ -68,28 +78,33 @@ In-progress bids submitted by artisans on gigs. Represents the negotiation phase
 ---
 
 ### **COMPLETION_CONTRACTS**
-Finalized, settled work contracts. Created when a bid is accepted. Source of truth for:
+Accepted-work contracts. Created when a bid is accepted. Source of truth for:
 - Final negotiated amount (may differ from original bid)
-- Payment status: `pending` → `paid` or `disputed`
-- Completion timestamp
+- Payment status: `pending` → `paid` or `disputed`. New contracts require the employer's payment-sent timestamp and the artisan's receipt timestamp before `paid`.
+- Optional completion timestamp (not yet set through the UI)
 
-**Cardinality:** One gig posting results in exactly one contract (once a bid is accepted, the gig closes and no other artisan can be assigned). One artisan can complete many contracts.
+**Cardinality:** An open or cancelled gig has no contract. An accepted bid produces one contract for its gig; a unique constraint prevents a second contract for that gig. One artisan can have many contracts. The accepted application is linked to the contract through the gig and selected artisan, not by a direct foreign key.
 
 ---
 
 ### **RATINGS_REVIEWS**
-Post-completion feedback left by employers for artisans. Drives the artisan's Trust_Score:
+Feedback left by employers after a contract becomes paid. Drives the artisan's Trust_Score:
 - Rating in stars (1–5)
 - Optional feedback text
-- One review per completed contract (enforced by UNIQUE constraint)
+- One review per contract (enforced by UNIQUE constraint)
 
-**Cardinality:** Each completed contract may receive one review. Reviews feed into the artisan's Trust_Score, which is recomputed via trigger after each new review.
+**Cardinality:** Each contract may receive one review. Reviews feed into the artisan's Trust_Score, which is recomputed via trigger after each new review.
+
+---
+
+### **CONTRACT_EVENTS**
+Append-only events tied to a contract. An optional actor identifies who took each step; migrated historical paid rows receive a `legacy_record` event rather than an invented artisan confirmation. The database blocks updates and deletes to this table.
 
 ---
 
 ## Normalization (3NF Justification)
 
-All six tables are in **Third Normal Form (3NF)**:
+The six core tables are analyzed for **Third Normal Form (3NF)** in the [normalization guide](../docs/Normalization_Justification.md). The event table's relational columns depend on `Event_ID`; its JSONB detail is occasional metadata and would need typed fields if used for routine analysis.
 
 1. **No repeating groups** (1NF): All attributes are atomic; no multi-valued fields.
 2. **No partial dependencies** (2NF): All non-key attributes depend on the *entire* primary key, not just part of it.
@@ -108,7 +123,7 @@ All six tables are in **Third Normal Form (3NF)**:
 - **Primary Keys:** SERIAL surrogate keys on all tables for fast joins and stable references.
 - **Foreign Keys:** ON DELETE CASCADE ensures referential integrity; deleting a user cascades to their artisans, gigs, applications, and contracts.
 - **CHECK Constraints:** Budget > 0, Hourly_Rate > 0, Bid_Amount > 0, Final_Amount > 0, Rating_Stars ∈ [1,5], Trust_Score ∈ [0.00, 5.00], Status ∈ {open, closed, cancelled}, etc.
-- **UNIQUE Constraints:** Phone (no duplicate accounts), Email (optional but unique), ARTISANS(User_ID) (one-to-one), GIG_APPLICATIONS(Gig_ID, Artisan_ID) (each artisan bids once per gig), RATINGS_REVIEWS(Contract_ID) (one review per contract).
+- **UNIQUE Constraints:** Phone (no duplicate accounts), Email (optional but unique), ARTISANS(User_ID) (one-to-one), GIG_APPLICATIONS(Gig_ID, Artisan_ID) (each artisan bids once per gig), COMPLETION_CONTRACTS(Gig_ID) (one contract per gig), RATINGS_REVIEWS(Contract_ID) (one review per contract).
 - **NOT NULL:** Critical fields like Full_Name, Phone, Password_Hash, Skill_Category, etc., are NOT NULL.
 
 ---

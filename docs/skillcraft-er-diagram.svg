@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="840" viewBox="0 0 1400 840" role="img" aria-labelledby="title desc">
+  <title id="title">SkillCraft relational database diagram</title>
+  <desc id="desc">Seven connected tables: users, artisans, gig postings, gig applications, completion contracts, ratings reviews, and contract events. Primary keys, foreign keys, and relationship cardinalities are shown.</desc>
+  <defs>
+    <style>
+      .bg{fill:#f8f7f2}.rule{stroke:#a4b2a6;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}.box{fill:#fff;stroke:#aab9ac;stroke-width:2}.head{fill:#e4ece4}.head-warm{fill:#eee7de}.heading{font:700 21px Arial,sans-serif;fill:#20362e}.field{font:17px Arial,sans-serif;fill:#31453b}.key{font:700 14px Arial,sans-serif;fill:#426a54}.rel{font:700 15px Arial,sans-serif;fill:#52695a}.small{font:14px Arial,sans-serif;fill:#65766b}.title{font:700 29px Arial,sans-serif;fill:#20362e}
+    </style>
+  </defs>
+  <rect width="1400" height="840" class="bg"/>
+  <text x="72" y="43" class="title">SkillCraft · relational model</text>
+  <text x="1320" y="42" text-anchor="end" class="small">PK primary key · FK foreign key · 1 / 0..* cardinality</text>
+
+  <!-- Relationship lines are placed below entity cards. -->
+  <path class="rule" d="M220 225 V300"/><text x="230" y="248" class="rel">1</text><text x="230" y="291" class="rel">0..1</text>
+  <path class="rule" d="M360 146 H990"/><text x="370" y="135" class="rel">1</text><text x="944" y="135" class="rel">0..*</text>
+  <path class="rule" d="M380 388 H700"/><text x="393" y="378" class="rel">1</text><text x="651" y="378" class="rel">0..*</text>
+  <path class="rule" d="M1155 245 V272 H874 V300"/><text x="1165" y="267" class="rel">1</text><text x="884" y="291" class="rel">0..*</text>
+  <path class="rule" d="M300 480 V548 H520 V635"/><text x="309" y="502" class="rel">1</text><text x="529" y="627" class="rel">0..*</text>
+  <path class="rule" d="M1320 158 H1360 V540 H880 V650"/><text x="1330" y="179" class="rel">1</text><text x="892" y="642" class="rel">0..1</text>
+  <path class="rule" d="M520 695 H380"/><text x="484" y="683" class="rel">1</text><text x="389" y="683" class="rel">0..1</text>
+  <path class="rule" d="M880 695 H1030"/><text x="891" y="683" class="rel">1</text><text x="985" y="683" class="rel">0..*</text>
+
+  <g transform="translate(80 70)"><rect class="box" width="280" height="155" rx="8"/><path class="head" d="M8 0 H272 Q280 0 280 8 V47 H0 V8 Q0 0 8 0"/><text class="heading" x="17" y="31">USERS</text><text class="key" x="18" y="77">PK</text><text class="field" x="60" y="77">user_id</text><text class="field" x="18" y="105">full_name · phone</text><text class="field" x="18" y="133">role · password_hash</text></g>
+  <g transform="translate(80 300)"><rect class="box" width="300" height="180" rx="8"/><path class="head" d="M8 0 H292 Q300 0 300 8 V47 H0 V8 Q0 0 8 0"/><text class="heading" x="17" y="31">ARTISANS</text><text class="key" x="18" y="77">PK</text><text class="field" x="60" y="77">artisan_id</text><text class="key" x="18" y="105">FK</text><text class="field" x="60" y="105">user_id · unique</text><text class="field" x="18" y="133">skill · location · rate</text><text class="field" x="18" y="161">trust_score</text></g>
+  <g transform="translate(990 70)"><rect class="box" width="330" height="175" rx="8"/><path class="head-warm" d="M8 0 H322 Q330 0 330 8 V47 H0 V8 Q0 0 8 0"/><text class="heading" x="17" y="31">GIG_POSTINGS</text><text class="key" x="18" y="77">PK</text><text class="field" x="60" y="77">gig_id</text><text class="key" x="18" y="105">FK</text><text class="field" x="60" y="105">employer_user_id</text><text class="field" x="18" y="133">skill · location · budget</text><text class="field" x="18" y="159">status · description</text></g>
+  <g transform="translate(700 300)"><rect class="box" width="350" height="180" rx="8"/><path class="head-warm" d="M8 0 H342 Q350 0 350 8 V47 H0 V8 Q0 0 8 0"/><text class="heading" x="17" y="31">GIG_APPLICATIONS</text><text class="key" x="18" y="77">PK</text><text class="field" x="60" y="77">application_id</text><text class="key" x="18" y="105">FK</text><text class="field" x="60" y="105">gig_id · artisan_id</text><text class="field" x="18" y="133">bid_amount · note</text><text class="field" x="18" y="161">status · unique(gig, artisan)</text></g>
+  <g transform="translate(520 570)"><rect class="box" width="360" height="210" rx="8"/><path class="head" d="M8 0 H352 Q360 0 360 8 V47 H0 V8 Q0 0 8 0"/><text class="heading" x="17" y="31">COMPLETION_CONTRACTS</text><text class="key" x="18" y="77">PK</text><text class="field" x="60" y="77">contract_id</text><text class="key" x="18" y="105">FK</text><text class="field" x="60" y="105">gig_id · unique</text><text class="key" x="18" y="133">FK</text><text class="field" x="60" y="133">selected_artisan_id</text><text class="field" x="18" y="161">final_amount · payment_status</text><text class="field" x="18" y="189">sent_at · received_at</text></g>
+  <g transform="translate(80 630)"><rect class="box" width="300" height="135" rx="8"/><path class="head-warm" d="M8 0 H292 Q300 0 300 8 V47 H0 V8 Q0 0 8 0"/><text class="heading" x="17" y="31">RATINGS_REVIEWS</text><text class="key" x="18" y="77">PK</text><text class="field" x="60" y="77">review_id</text><text class="key" x="18" y="105">FK</text><text class="field" x="60" y="105">contract_id · unique</text><text class="field" x="18" y="128">rating_stars · feedback</text></g>
+  <g transform="translate(1030 620)"><rect class="box" width="290" height="150" rx="8"/><path class="head" d="M8 0 H282 Q290 0 290 8 V47 H0 V8 Q0 0 8 0"/><text class="heading" x="17" y="31">CONTRACT_EVENTS</text><text class="key" x="18" y="77">PK</text><text class="field" x="60" y="77">event_id</text><text class="key" x="18" y="105">FK</text><text class="field" x="60" y="105">contract_id · actor_user_id*</text><text class="field" x="18" y="134">event_type · created_at</text></g>
+  <text x="80" y="811" class="small">* actor_user_id references USERS and can be null for legacy events. Accepting a bid creates a contract through a trigger, without a direct bid-to-contract FK.</text>
+</svg>

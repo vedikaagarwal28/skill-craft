@@ -57,6 +57,10 @@ frontend/dist/
 
 # Backend test databases
 backend/.test-db/
+edge-check/
+frontend/test-results/
+frontend/preview-*.png
+preview-home.png
 
 # Docker volumes (if using local volumes)
 postgres_data/

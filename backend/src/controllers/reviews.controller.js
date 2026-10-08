@@ -38,10 +38,10 @@ export const postReview = async (req, res) => {
 
     // Get contract and verify ownership
     const contractResult = await query(
-      `SELECT cc.*, gp.Employer_User_ID
+      `SELECT cc.*, gp.employer_user_id
        FROM COMPLETION_CONTRACTS cc
-       JOIN GIG_POSTINGS gp ON cc.Gig_ID = gp.Gig_ID
-       WHERE cc.Contract_ID = $1`,
+       JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
+       WHERE cc.contract_id = $1`,
       [contractId]
     );
 
@@ -51,10 +51,14 @@ export const postReview = async (req, res) => {
 
     const contract = contractResult.rows[0];
 
-    if (req.user.role !== 'admin' && req.user.userId !== contract.Employer_User_ID) {
+    if (req.user.role !== 'admin' && req.user.userId !== contract.employer_user_id) {
       return res.status(403).json({
         error: 'Can only review your own contracts',
       });
+    }
+
+    if (contract.payment_status !== 'paid') {
+      return res.status(409).json({ error: 'Record payment before leaving a review' });
     }
 
     // Check if review already exists
@@ -113,20 +117,11 @@ export const getArtisanReviews = async (req, res) => {
 
     // Get reviews
     const result = await query(
-      `SELECT
-        rr.Review_ID,
-        rr.Rating_Stars,
-        rr.Feedback_Text,
-        rr.Review_Date,
-        u.Full_Name as employer_name,
-        gp.Skill_Required,
-        cc.Final_Amount
-       FROM RATINGS_REVIEWS rr
-       JOIN COMPLETION_CONTRACTS cc ON rr.Contract_ID = cc.Contract_ID
-       JOIN GIG_POSTINGS gp ON cc.Gig_ID = gp.Gig_ID
-       JOIN USERS u ON gp.Employer_User_ID = u.User_ID
-       WHERE cc.Selected_Artisan_ID = $1
-       ORDER BY rr.Review_Date DESC`,
+      `SELECT review_id, rating_stars, feedback_text, review_date,
+              employer_name, skill_required, final_amount
+       FROM Artisan_Public_Reviews
+       WHERE artisan_id = $1
+       ORDER BY review_date DESC`,
       [artisanId]
     );
 

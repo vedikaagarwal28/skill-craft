@@ -5,7 +5,9 @@
 
 ## Overview
 
-The SkillCraft database schema consists of **six tables**, all normalized to **Third Normal Form (3NF)**. This document walks through each table, demonstrates its normalization, and explains the design decisions that keep the schema in 3NF while maintaining real-world applicability.
+The original SkillCraft schema has **six core tables** analyzed below for Third Normal Form (3NF). The current prototype adds a seventh table, `CONTRACT_EVENTS`, for append-only history. Its relational columns depend on `Event_ID`; its JSONB detail field is limited to event metadata and should be split into typed columns if it becomes a regular reporting dimension.
+
+**Current implementation note:** `ARTISANS.Trust_Score` is a deliberately cached aggregate derived from paid-status contract reviews. A trigger maintains it after each new review. It is useful for fast reads but should be disclosed as derived, potentially stale data if source records are changed outside the supported workflow; it is not proof of independent payment verification. See the [current README](../README.md) for demo status.
 
 ---
 
@@ -296,6 +298,14 @@ RATINGS_REVIEWS (
 
 ---
 
+### 7. **CONTRACT_EVENTS Table**
+
+`Event_ID` identifies one event; `Contract_ID` links it to a contract and nullable `Actor_User_ID` links it to the person who took the action. `Event_Type` and `Created_At` describe that event. No artisan name, employer name or contract amount is copied into the event row. A trigger blocks updates and deletes so earlier claims cannot be silently rewritten. Legacy imported rows have a null actor rather than an invented confirmation.
+
+The `Event_Detail` JSONB field stores occasional metadata, such as the prior payment status for an imported record. If those details become fields used for routine joins or analytics, they should be modeled explicitly instead of relying on opaque JSON.
+
+---
+
 ## Cross-Table Normalization Check
 
 ### No Transitive Dependencies Across Tables
@@ -324,7 +334,7 @@ Example check:
 
 - **Slight increase in joins**: Queries often join USERS + ARTISANS, GIG_POSTINGS + GIG_APPLICATIONS, etc.
   - Mitigated by indexes and reasonable cardinalities
-  - In the 10M+ row range, query optimization crucial; 3NF design actually enables faster indexing
+  - Index use at larger scales should be measured on native PostgreSQL before making a performance claim
 
 ---
 

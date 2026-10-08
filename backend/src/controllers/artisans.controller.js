@@ -23,24 +23,21 @@ export const getArtisanProfile = async (req, res) => {
 
     const result = await query(
       `SELECT
-         a.Artisan_ID,
-         a.User_ID,
-         u.Full_Name,
-         u.Phone,
-         u.Email,
-         a.Skill_Category,
-         a.Base_Location,
-         a.Region_Language,
-         a.Hourly_Rate,
-         a.Trust_Score,
-         a.Created_At,
-         (SELECT COUNT(*) FROM COMPLETION_CONTRACTS WHERE Selected_Artisan_ID = a.Artisan_ID) as total_contracts_completed,
-         (SELECT COUNT(*) FROM RATINGS_REVIEWS rr 
-          JOIN COMPLETION_CONTRACTS cc ON rr.Contract_ID = cc.Contract_ID
-          WHERE cc.Selected_Artisan_ID = a.Artisan_ID) as total_reviews
+         a.artisan_id,
+         a.user_id,
+         u.full_name,
+         a.skill_category,
+         a.base_location,
+         a.region_language,
+         a.hourly_rate,
+         a.trust_score,
+         a.created_at,
+         stats.total_contracts_completed,
+         stats.total_reviews
        FROM ARTISANS a
-       JOIN USERS u ON a.User_ID = u.User_ID
-       WHERE a.Artisan_ID = $1`,
+       JOIN USERS u ON a.user_id = u.user_id
+       JOIN Artisan_Public_Stats stats ON stats.artisan_id = a.artisan_id
+       WHERE a.artisan_id = $1`,
       [id]
     );
 
@@ -81,21 +78,21 @@ export const updateArtisanProfile = async (req, res) => {
         'SELECT User_ID FROM ARTISANS WHERE Artisan_ID = $1',
         [id]
       );
-      if (checkResult.rows.length === 0 || checkResult.rows[0].User_ID !== req.user.userId) {
+      if (checkResult.rows.length === 0 || checkResult.rows[0].user_id !== req.user.userId) {
         return res.status(403).json({ error: 'Can only update own profile' });
       }
     }
 
     // Validate input
     const updates = {};
-    if (skillCategory !== undefined) updates.Skill_Category = skillCategory;
-    if (baseLocation !== undefined) updates.Base_Location = baseLocation;
-    if (regionLanguage !== undefined) updates.Region_Language = regionLanguage;
+    if (skillCategory !== undefined) updates.skill_category = skillCategory;
+    if (baseLocation !== undefined) updates.base_location = baseLocation;
+    if (regionLanguage !== undefined) updates.region_language = regionLanguage;
     if (hourlyRate !== undefined) {
       if (hourlyRate <= 0) {
         return res.status(400).json({ error: 'hourlyRate must be > 0' });
       }
-      updates.Hourly_Rate = hourlyRate;
+      updates.hourly_rate = hourlyRate;
     }
 
     if (Object.keys(updates).length === 0) {
@@ -139,45 +136,57 @@ export const updateArtisanProfile = async (req, res) => {
  */
 export const listArtisans = async (req, res) => {
   try {
-    const { skillCategory, baseLocation, sortBy = 'trustScore', limit = 50 } = req.query;
+    const { skillCategory, baseLocation, q, sortBy = 'trustScore', limit = 50 } = req.query;
 
     let sql = `SELECT
-      a.Artisan_ID,
-      a.User_ID,
-      u.Full_Name,
-      a.Skill_Category,
-      a.Base_Location,
-      a.Region_Language,
-      a.Hourly_Rate,
-      a.Trust_Score,
-      (SELECT COUNT(*) FROM COMPLETION_CONTRACTS WHERE Selected_Artisan_ID = a.Artisan_ID) as total_contracts_completed
+      a.artisan_id,
+      a.user_id,
+      u.full_name,
+      a.skill_category,
+      a.base_location,
+      a.region_language,
+      a.hourly_rate,
+      a.trust_score,
+      CASE WHEN app_actor_role() = 'employer' THEN COALESCE((
+        SELECT MAX(CASE WHEN LOWER(g.skill_required) = LOWER(a.skill_category) THEN 2 ELSE 0 END +
+          CASE WHEN split_part(LOWER(g.address), ',', 1) = split_part(LOWER(a.base_location), ',', 1) THEN 1 ELSE 0 END)
+        FROM GIG_POSTINGS g WHERE g.employer_user_id = app_actor_id() AND g.status = 'open'
+      ), 0) ELSE 0 END AS match_score,
+      stats.total_contracts_completed,
+      stats.total_reviews
      FROM ARTISANS a
-     JOIN USERS u ON a.User_ID = u.User_ID
+     JOIN USERS u ON a.user_id = u.user_id
+     JOIN Artisan_Public_Stats stats ON stats.artisan_id = a.artisan_id
      WHERE 1=1`;
 
     const params = [];
 
     if (skillCategory) {
-      sql += ` AND a.Skill_Category ILIKE $${params.length + 1}`;
-      params.push(`%${skillCategory}%`);
+      sql += ` AND LOWER(a.skill_category) = LOWER($${params.length + 1})`;
+      params.push(skillCategory);
     }
 
     if (baseLocation) {
-      sql += ` AND a.Base_Location ILIKE $${params.length + 1}`;
-      params.push(`%${baseLocation}%`);
+      sql += ` AND to_tsvector('simple', COALESCE(a.skill_category, '') || ' ' || COALESCE(a.base_location, '')) @@ websearch_to_tsquery('simple', $${params.length + 1})`;
+      params.push(baseLocation);
+    }
+
+    if (q?.trim()) {
+      sql += ` AND (to_tsvector('simple', COALESCE(a.skill_category, '') || ' ' || COALESCE(a.base_location, '')) @@ websearch_to_tsquery('simple', $${params.length + 1}) OR u.full_name ILIKE $${params.length + 2})`;
+      params.push(q.trim(), `%${q.trim()}%`);
     }
 
     // Sorting
     if (sortBy === 'trustScore') {
-      sql += ' ORDER BY a.Trust_Score DESC';
+      sql += ' ORDER BY match_score DESC, a.trust_score DESC';
     } else if (sortBy === 'hourlyRate') {
-      sql += ' ORDER BY a.Hourly_Rate DESC';
+      sql += ' ORDER BY a.hourly_rate DESC';
     } else {
-      sql += ' ORDER BY a.Artisan_ID DESC';
+      sql += ' ORDER BY a.artisan_id DESC';
     }
 
     sql += ` LIMIT $${params.length + 1}`;
-    params.push(parseInt(limit) || 50);
+    params.push(Math.min(Math.max(parseInt(limit, 10) || 50, 1), 100));
 
     const result = await query(sql, params);
     res.json(result.rows);

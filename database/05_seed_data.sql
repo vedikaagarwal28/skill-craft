@@ -8,13 +8,13 @@
 -- - 10 employers
 -- - 20 gig postings in mixed states (open, closed, cancelled)
 -- - 30 applications with varied bid amounts
--- - 12 completed contracts with payment statuses
--- - 12 reviews with varied star ratings for trust score calculation
+-- - 8 unique contracts with payment statuses
+-- - 8 reviews with varied star ratings for trust score calculation
 -- ============================================================================
 
 -- Note: Passwords are bcrypt hashes. In production, always use bcrypt to hash.
 -- Test passwords used here: "password123" hashed with bcrypt
--- Hash: $2b$10$pNZfqVPYkKW0Vx2z5O8s7eRr5r5R5r5r5R5r5r5r5R5r5r5r5r5r5
+-- All seeded accounts use a valid bcrypt hash for password123.
 -- (For demo only; in real usage, hash dynamically at registration time)
 
 -- ============================================================================
@@ -22,44 +22,44 @@
 -- ============================================================================
 
 INSERT INTO USERS (Full_Name, Phone, Email, Password_Hash, Role) VALUES
-  ('Lakshmi Devi', '9876543210', 'lakshmi@skillcraft.local', '$2b$10$bcryptHashedPassword1', 'artisan'),
-  ('Rajesh Kumar', '9876543211', 'rajesh@skillcraft.local', '$2b$10$bcryptHashedPassword2', 'artisan'),
-  ('Priya Sharma', '9876543212', 'priya@skillcraft.local', '$2b$10$bcryptHashedPassword3', 'artisan'),
-  ('Amit Patel', '9876543213', 'amit@skillcraft.local', '$2b$10$bcryptHashedPassword4', 'artisan'),
-  ('Suresh Verma', '9876543214', 'suresh@skillcraft.local', '$2b$10$bcryptHashedPassword5', 'artisan'),
-  ('Geeta Singh', '9876543215', 'geeta@skillcraft.local', '$2b$10$bcryptHashedPassword6', 'artisan'),
-  ('Ravi Nair', '9876543216', 'ravi@skillcraft.local', '$2b$10$bcryptHashedPassword7', 'artisan'),
-  ('Anjali Gupta', '9876543217', 'anjali@skillcraft.local', '$2b$10$bcryptHashedPassword8', 'artisan'),
-  ('Vikram Das', '9876543218', 'vikram@skillcraft.local', '$2b$10$bcryptHashedPassword9', 'artisan'),
-  ('Neelam Bose', '9876543219', 'neelam@skillcraft.local', '$2b$10$bcryptHashedPassword10', 'artisan'),
-  ('Mohan Singh', '9876543220', 'mohan@skillcraft.local', '$2b$10$bcryptHashedPassword11', 'artisan'),
-  ('Shweta Desai', '9876543221', 'shweta@skillcraft.local', '$2b$10$bcryptHashedPassword12', 'artisan'),
-  ('Kabir Khan', '9876543222', 'kabir@skillcraft.local', '$2b$10$bcryptHashedPassword13', 'artisan'),
-  ('Dimple Roy', '9876543223', 'dimple@skillcraft.local', '$2b$10$bcryptHashedPassword14', 'artisan'),
-  ('Harsh Pandey', '9876543224', 'harsh@skillcraft.local', '$2b$10$bcryptHashedPassword15', 'artisan');
+  ('Lakshmi Devi', '9876543210', 'lakshmi@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Rajesh Kumar', '9876543211', 'rajesh@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Priya Sharma', '9876543212', 'priya@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Amit Patel', '9876543213', 'amit@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Suresh Verma', '9876543214', 'suresh@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Geeta Singh', '9876543215', 'geeta@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Ravi Nair', '9876543216', 'ravi@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Anjali Gupta', '9876543217', 'anjali@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Vikram Das', '9876543218', 'vikram@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Neelam Bose', '9876543219', 'neelam@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Mohan Singh', '9876543220', 'mohan@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Shweta Desai', '9876543221', 'shweta@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Kabir Khan', '9876543222', 'kabir@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Dimple Roy', '9876543223', 'dimple@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan'),
+  ('Harsh Pandey', '9876543224', 'harsh@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'artisan');
 
 -- ============================================================================
 -- USERS: Employers
 -- ============================================================================
 
 INSERT INTO USERS (Full_Name, Phone, Email, Password_Hash, Role) VALUES
-  ('Ramesh Constructions', '8765432100', 'ramesh@constructionco.in', '$2b$10$bcryptHashedPassword16', 'employer'),
-  ('Priya Home Services', '8765432101', 'priya@homeservices.in', '$2b$10$bcryptHashedPassword17', 'employer'),
-  ('Urban Repair Works', '8765432102', 'urban@repairworks.in', '$2b$10$bcryptHashedPassword18', 'employer'),
-  ('Fashion House Pune', '8765432103', 'fashion@pun.in', '$2b$10$bcryptHashedPassword19', 'employer'),
-  ('TechFix Electronics', '8765432104', 'techfix@electronics.in', '$2b$10$bcryptHashedPassword20', 'employer'),
-  ('Green Gardens Ltd', '8765432105', 'gardens@green.in', '$2b$10$bcryptHashedPassword21', 'employer'),
-  ('Swift Logistics', '8765432106', 'swift@logistics.in', '$2b$10$bcryptHashedPassword22', 'employer'),
-  ('Local Events Co', '8765432107', 'events@local.in', '$2b$10$bcryptHashedPassword23', 'employer'),
-  ('Home Decor Studio', '8765432108', 'decor@studio.in', '$2b$10$bcryptHashedPassword24', 'employer'),
-  ('Village Cooperative', '8765432109', 'coop@village.in', '$2b$10$bcryptHashedPassword25', 'employer');
+  ('Ramesh Constructions', '8765432100', 'ramesh@constructionco.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Priya Home Services', '8765432101', 'priya@homeservices.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Urban Repair Works', '8765432102', 'urban@repairworks.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Fashion House Pune', '8765432103', 'fashion@pun.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('TechFix Electronics', '8765432104', 'techfix@electronics.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Green Gardens Ltd', '8765432105', 'gardens@green.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Swift Logistics', '8765432106', 'swift@logistics.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Local Events Co', '8765432107', 'events@local.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Home Decor Studio', '8765432108', 'decor@studio.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer'),
+  ('Village Cooperative', '8765432109', 'coop@village.in', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'employer');
 
 -- ============================================================================
 -- USERS: Admin
 -- ============================================================================
 
 INSERT INTO USERS (Full_Name, Phone, Email, Password_Hash, Role) VALUES
-  ('Admin User', '1111111111', 'admin@skillcraft.local', '$2b$10$bcryptHashedPassword26', 'admin');
+  ('Admin User', '1111111111', 'admin@skillcraft.local', '$2a$10$5t2B4fC36/Fj3M5qliOCq.i0vP.v13e58pk65cp1g9Bsb51GkLhpi', 'admin');
 
 -- ============================================================================
 -- ARTISANS: Skill profiles with varied locations and rates
@@ -87,26 +87,26 @@ INSERT INTO ARTISANS (User_ID, Skill_Category, Base_Location, Region_Language, H
 -- ============================================================================
 
 INSERT INTO GIG_POSTINGS (Employer_User_ID, Skill_Required, Description, Address, Budget, Status) VALUES
-  (12, 'Handloom Weaving', 'Weave 10 traditional scarves for local market', 'Bhagalpur, Bihar', 5000.00, 'closed'),
-  (13, 'Plumbing', 'Fix leaking pipes in 3-bedroom home', 'Sector 12, Jaipur', 3000.00, 'closed'),
-  (14, 'Electrical Work', 'Install wiring for new office room', 'Hinjewadi, Pune', 8000.00, 'closed'),
-  (15, 'Tailoring', 'Custom stitching: 20 uniforms for school', 'Gomti Nagar, Lucknow', 6000.00, 'closed'),
-  (16, 'Carpentry', 'Build wooden cabinets for kitchen', 'MG Road, Indore', 12000.00, 'open'),
-  (17, 'Masonry', 'Construct boundary wall (50 meters)', 'AUDA, Ahmedabad', 15000.00, 'open'),
-  (18, 'Handloom Weaving', 'Repair antique tapestry', 'Assi, Varanasi', 2000.00, 'open'),
-  (19, 'Plumbing', 'Bathroom renovation (complete)', 'Whitefield, Bengaluru', 9000.00, 'cancelled'),
-  (20, 'Electrical Work', 'Upgrade electrical panel in factory', 'Tambaram, Chennai', 18000.00, 'open'),
-  (21, 'Tailoring', 'Hem 50 pairs of trousers', 'Banjara Hills, Hyderabad', 2500.00, 'closed'),
-  (12, 'Carpentry', 'Furniture repair for office cubicles', 'Salt Lake, Kolkata', 8000.00, 'open'),
-  (13, 'Masonry', 'Floor tiling for 1500 sq ft', 'Sakchi, Jamshedpur', 12000.00, 'closed'),
-  (14, 'Handloom Weaving', 'Weave decorative wall hangings (5 pieces)', 'Salem, Tamil Nadu', 4000.00, 'open'),
-  (15, 'Plumbing', 'Install new kitchen sink and taps', 'Sagrampura, Surat', 4000.00, 'closed'),
-  (16, 'Electrical Work', 'Solar panel wiring installation', 'Ramdaspeth, Nagpur', 22000.00, 'open'),
-  (17, 'Tailoring', 'Bridal saree stitching (rush order)', 'Dilsukhnagar, Hyderabad', 8000.00, 'open'),
-  (18, 'Carpentry', 'Repair wooden door frames (6 doors)', 'Malviya Nagar, Jaipur', 5000.00, 'cancelled'),
-  (19, 'Masonry', 'Repair cracks in concrete foundation', 'Powai, Mumbai', 7000.00, 'open'),
-  (20, 'Handloom Weaving', 'Custom carpet weaving (4x6 ft)', 'Aurangabad, Maharashtra', 10000.00, 'closed'),
-  (21, 'Plumbing', 'Pipe replacement for entire house', 'Jayanagar, Bengaluru', 11000.00, 'closed');
+  (16, 'Handloom Weaving', 'Weave 10 traditional scarves for local market', 'Bhagalpur, Bihar', 5000.00, 'closed'),
+  (17, 'Plumbing', 'Fix leaking pipes in 3-bedroom home', 'Sector 12, Jaipur', 3000.00, 'closed'),
+  (18, 'Electrical Work', 'Install wiring for new office room', 'Hinjewadi, Pune', 8000.00, 'closed'),
+  (19, 'Tailoring', 'Custom stitching: 20 uniforms for school', 'Gomti Nagar, Lucknow', 6000.00, 'closed'),
+  (20, 'Carpentry', 'Build wooden cabinets for kitchen', 'MG Road, Indore', 12000.00, 'open'),
+  (21, 'Masonry', 'Construct boundary wall (50 meters)', 'AUDA, Ahmedabad', 15000.00, 'open'),
+  (22, 'Handloom Weaving', 'Repair antique tapestry', 'Assi, Varanasi', 2000.00, 'open'),
+  (23, 'Plumbing', 'Bathroom renovation (complete)', 'Whitefield, Bengaluru', 9000.00, 'cancelled'),
+  (24, 'Electrical Work', 'Upgrade electrical panel in factory', 'Tambaram, Chennai', 18000.00, 'open'),
+  (25, 'Tailoring', 'Hem 50 pairs of trousers', 'Banjara Hills, Hyderabad', 2500.00, 'closed'),
+  (16, 'Carpentry', 'Furniture repair for office cubicles', 'Salt Lake, Kolkata', 8000.00, 'open'),
+  (17, 'Masonry', 'Floor tiling for 1500 sq ft', 'Sakchi, Jamshedpur', 12000.00, 'closed'),
+  (18, 'Handloom Weaving', 'Weave decorative wall hangings (5 pieces)', 'Salem, Tamil Nadu', 4000.00, 'open'),
+  (19, 'Plumbing', 'Install new kitchen sink and taps', 'Sagrampura, Surat', 4000.00, 'closed'),
+  (20, 'Electrical Work', 'Solar panel wiring installation', 'Ramdaspeth, Nagpur', 22000.00, 'open'),
+  (21, 'Tailoring', 'Bridal saree stitching (rush order)', 'Dilsukhnagar, Hyderabad', 8000.00, 'open'),
+  (22, 'Carpentry', 'Repair wooden door frames (6 doors)', 'Malviya Nagar, Jaipur', 5000.00, 'cancelled'),
+  (23, 'Masonry', 'Repair cracks in concrete foundation', 'Powai, Mumbai', 7000.00, 'open'),
+  (24, 'Handloom Weaving', 'Custom carpet weaving (4x6 ft)', 'Aurangabad, Maharashtra', 10000.00, 'closed'),
+  (25, 'Plumbing', 'Pipe replacement for entire house', 'Jayanagar, Bengaluru', 11000.00, 'closed');
 
 -- ============================================================================
 -- GIG_APPLICATIONS: 30 applications with varied bid amounts
@@ -145,30 +145,21 @@ INSERT INTO GIG_APPLICATIONS (Gig_ID, Artisan_ID, Bid_Amount, Application_Status
   (20, 7, 10500.00, 'rejected');
 
 -- ============================================================================
--- COMPLETION_CONTRACTS: 12 completed contracts from accepted applications
+-- COMPLETION_CONTRACTS: 8 unique contracts from accepted applications
 -- ============================================================================
 
 INSERT INTO COMPLETION_CONTRACTS (Gig_ID, Selected_Artisan_ID, Final_Amount, Payment_Status, Completion_Timestamp) VALUES
   (1, 1, 4800.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '30 days'),
   (2, 2, 2900.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '28 days'),
   (3, 3, 7500.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '25 days'),
-  (4, 4, 5800.00, 'pending', CURRENT_TIMESTAMP - INTERVAL '15 days'),
+  (4, 4, 5800.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '15 days'),
   (10, 4, 2400.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '20 days'),
   (12, 6, 11500.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '10 days'),
   (14, 2, 3800.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '22 days'),
-  (20, 1, 9500.00, 'pending', CURRENT_TIMESTAMP - INTERVAL '5 days'),
-  -- Additional contracts to reach 12 total
-  (1, 1, 4800.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '60 days'),
-  (2, 2, 2900.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '55 days'),
-  (3, 3, 7500.00, 'disputed', CURRENT_TIMESTAMP - INTERVAL '40 days'),
-  (4, 4, 5800.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '35 days');
-
--- Note: Some contracts are duplicated for demo; in production, each gig yields max 1 contract.
--- For this seed data, we're creating 12 review entries below, so we need 12 contracts.
--- Adjust the duplicate gig/artisan pairs as needed, or use different gigs.
+  (20, 1, 9500.00, 'paid', CURRENT_TIMESTAMP - INTERVAL '5 days');
 
 -- ============================================================================
--- RATINGS_REVIEWS: 12 reviews with varied star ratings
+-- RATINGS_REVIEWS: 8 reviews with varied star ratings
 -- ============================================================================
 -- These directly compute the artisan trust scores via trigger
 
@@ -180,11 +171,7 @@ INSERT INTO RATINGS_REVIEWS (Contract_ID, Rating_Stars, Feedback_Text) VALUES
   (5, 4, 'Professional and reliable. Good value.'),
   (6, 5, 'Fantastic work, very detailed and thorough.'),
   (7, 4, 'Good service, quick turnaround.'),
-  (8, 2, 'Below expectations, took longer than promised.'),
-  (9, 5, 'Perfect! Exactly what we needed.'),
-  (10, 4, 'Solid work, courteous and punctual.'),
-  (11, 3, 'Acceptable but some rework needed.'),
-  (12, 5, 'Outstanding craftsmanship and professionalism.');
+  (8, 2, 'Below expectations, took longer than promised.');
 
 -- ============================================================================
 -- Post-Seed Verification Queries

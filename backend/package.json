@@ -7,7 +7,11 @@
   "scripts": {
     "dev": "node src/index.js",
     "start": "node src/index.js",
-    "test": "jest --forceExit --detectOpenHandles",
+    "test": "node tests/schema-smoke.mjs && node tests/api-flow.mjs",
+    "test:jest-local": "node scripts/run-jest-local.mjs",
+    "test:postgres": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand",
+    "test:schema": "node tests/schema-smoke.mjs",
+    "dev:preview": "node scripts/dev-with-pglite.mjs",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
@@ -30,6 +34,8 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "jest": "^29.5.0",
     "supertest": "^6.3.3"
   },

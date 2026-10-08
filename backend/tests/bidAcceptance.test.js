@@ -1,7 +1,9 @@
 // ============================================================================
 // Backend Tests: Concurrent Bid Acceptance (Transaction Safety)
 // ============================================================================
-// CRITICAL TEST: Proves that row locking prevents double-booking a gig
+// Integration check: the combined transaction, row lock, trigger, and unique
+// constraint allow only one contract for a gig. A 409 response alone does not
+// prove which concurrency mechanism rejected the losing request.
 //
 // Scenario:
 // 1. Create a gig
@@ -16,7 +18,7 @@
 
 import request from 'supertest';
 import app from '../src/index.js';
-import { query } from '../src/db.js';
+import { query, closePool } from '../src/db.js';
 
 process.env.NODE_ENV = 'test';
 
@@ -83,26 +85,27 @@ describe('SkillCraft API - Concurrent Bid Acceptance (Transaction Safety)', () =
         address: 'Test Building',
         budget: 8000,
       });
-    gigId = gigRes.body.gig.Gig_ID;
+    gigId = gigRes.body.gig.gig_id;
 
     // First artisan submits bid
     const bid1Res = await request(app)
       .post(`/api/gigs/${gigId}/applications`)
       .set('Authorization', `Bearer ${artisan1Token}`)
       .send({ bidAmount: 7500 });
-    application1Id = bid1Res.body.application.Application_ID;
+    application1Id = bid1Res.body.application.application_id;
 
     // Second artisan submits bid
     const bid2Res = await request(app)
       .post(`/api/gigs/${gigId}/applications`)
       .set('Authorization', `Bearer ${artisan2Token}`)
       .send({ bidAmount: 7200 });
-    application2Id = bid2Res.body.application.Application_ID;
+    application2Id = bid2Res.body.application.application_id;
 
     console.log(`  Setup complete: Gig ${gigId}, App1 ${application1Id}, App2 ${application2Id}`);
   });
 
   afterAll(async () => {
+    await closePool();
     console.log('Concurrency tests completed');
   });
 
@@ -145,7 +148,7 @@ describe('SkillCraft API - Concurrent Bid Acceptance (Transaction Safety)', () =
    */
   test('Gig is closed after one accept succeeds', async () => {
     const gigRes = await query('SELECT Status FROM GIG_POSTINGS WHERE Gig_ID = $1', [gigId]);
-    expect(gigRes.rows[0].Status).toBe('closed');
+    expect(gigRes.rows[0].status).toBe('closed');
     console.log('  ✓ Gig properly closed after single accept');
   });
 
@@ -175,8 +178,8 @@ describe('SkillCraft API - Concurrent Bid Acceptance (Transaction Safety)', () =
     expect(appsRes.rows.length).toBe(2);
 
     const statusCounts = {
-      accepted: appsRes.rows.filter((r) => r.Application_Status === 'accepted').length,
-      rejected: appsRes.rows.filter((r) => r.Application_Status === 'rejected').length,
+      accepted: appsRes.rows.filter((r) => r.application_status === 'accepted').length,
+      rejected: appsRes.rows.filter((r) => r.application_status === 'rejected').length,
     };
 
     expect(statusCounts.accepted).toBe(1);
@@ -184,39 +187,4 @@ describe('SkillCraft API - Concurrent Bid Acceptance (Transaction Safety)', () =
     console.log('  ✓ One bid accepted, one auto-rejected by trigger');
   });
 
-  /**
-   * Bonus: Verify isolation level (serializable)
-   */
-  test('Transaction uses proper isolation level', async () => {
-    // This is more of a documentation test
-    // In production, PostgreSQL serializable isolation prevents dirty reads
-    // and ensures ACID compliance
-    console.log('  ✓ Transaction isolation: SERIALIZABLE (verified in acceptBid controller)');
-    expect(true).toBe(true);
-  });
-
-  /**
-   * Demonstrating the problem without row locking (conceptual)
-   * In a non-thread-safe implementation, both accepts might succeed
-   */
-  test('Demonstrates the problem solved (without locking, both would succeed)', () => {
-    const problemScenario = `
-    WITHOUT row locking:
-      Time T1: Employer1 reads Gig.Status = 'open' for App1
-      Time T2: Employer2 reads Gig.Status = 'open' for App2
-      Time T3: Employer1 writes Gig.Status = 'closed'
-      Time T4: Employer2 writes Gig.Status = 'closed' (both ACCEPTED!)
-      Result: DOUBLE-BOOKING BUG ❌
-    
-    WITH SELECT ... FOR UPDATE row locking:
-      Time T1: Employer1 locks Gig row (App1 acceptance transaction)
-      Time T2: Employer2 tries to lock same Gig row (WAITS)
-      Time T3: Employer1 completes, releases lock
-      Time T4: Employer2 acquires lock, but Status already 'closed'
-      Time T5: Employer2 gets 409 Conflict, rolls back
-      Result: ONLY ONE ACCEPTED ✓
-    `;
-    console.log(problemScenario);
-    expect(true).toBe(true);
-  });
 });

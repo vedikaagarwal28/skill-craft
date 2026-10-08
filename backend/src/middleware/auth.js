@@ -15,6 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_t
  * Used on all protected routes
  */
 export const authenticateToken = (req, res, next) => {
+  if (req.user) return next();
   // Get token from Authorization header (Bearer <token>)
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[1]; // Extract token after "Bearer "
@@ -35,6 +36,13 @@ export const authenticateToken = (req, res, next) => {
   }
 };
 
+// Public discovery still uses the restricted database role; a bearer token,
+// when present, supplies the signed actor for matching and ownership policies.
+export const optionalAuthentication = (req, res, next) => {
+  if (!req.headers.authorization) return next();
+  return authenticateToken(req, res, next);
+};
+
 /**
  * Generate a JWT token for a user
  * @param {object} user - User object with User_ID, Full_Name, Role
@@ -42,9 +50,9 @@ export const authenticateToken = (req, res, next) => {
  */
 export const generateToken = (user) => {
   const payload = {
-    userId: user.User_ID,
-    fullName: user.Full_Name,
-    role: user.Role,
+    userId: user.user_id,
+    fullName: user.full_name,
+    role: user.role,
   };
 
   const token = jwt.sign(payload, JWT_SECRET, {

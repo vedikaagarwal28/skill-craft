@@ -3,6 +3,9 @@
 -- BCSE302P – Database Systems Lab, Societal Digital Innovation Project
 -- ============================================================================
 -- This schema implements six entities normalized to Third Normal Form (3NF).
+-- The current prototype also applies 06_proposal_note.sql, 08_unique_contracts.sql,
+-- and 09_dbthon_workflow.sql; migration 09 adds contract events, two-party
+-- payment acknowledgement, indexed matching, and row-level security.
 -- All foreign keys use explicit ON DELETE/UPDATE rules for data integrity.
 -- Every table has meaningful UNIQUE, CHECK, NOT NULL, and default constraints.
 -- Indexes are added for common query patterns (skill matching, gig status, etc.).
@@ -61,9 +64,9 @@ CREATE TABLE ARTISANS (
   FOREIGN KEY (User_ID) REFERENCES USERS(User_ID) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-COMMENT ON TABLE ARTISANS IS 'Skill profile for artisans. Extends USERS via User_ID (one-to-one). Trust_Score ranges 0.00–5.00, computed from verified transaction history.';
+COMMENT ON TABLE ARTISANS IS 'Skill profile for artisans. Extends USERS via User_ID (one-to-one). Trust_Score ranges 0.00–5.00 and is cached from reviews on contracts marked paid by employers.';
 COMMENT ON COLUMN ARTISANS.Skill_Category IS 'Handloom weaving, plumbing, electrical, tailoring, carpentry, masonry, etc. Used for skill-matching in gig search.';
-COMMENT ON COLUMN ARTISANS.Trust_Score IS 'Computed from RATINGS_REVIEWS.Rating_Stars and payment-on-time metrics from COMPLETION_CONTRACTS. Updated via trigger after each review.';
+COMMENT ON COLUMN ARTISANS.Trust_Score IS 'Computed from paid-status contract reviews with a three-review prior. Updated via trigger after each review; no payment-timing metric is used.';
 
 -- ============================================================================
 -- Table: GIG_POSTINGS
@@ -111,6 +114,7 @@ CREATE TABLE GIG_APPLICATIONS (
   Gig_ID INTEGER NOT NULL,
   Artisan_ID INTEGER NOT NULL,
   Bid_Amount NUMERIC(10, 2) NOT NULL CHECK (Bid_Amount > 0),
+  Proposal_Note TEXT,
   Application_Status VARCHAR(20) NOT NULL 
     CHECK (Application_Status IN ('pending', 'accepted', 'rejected'))
     DEFAULT 'pending',
@@ -139,7 +143,7 @@ CREATE INDEX idx_gig_applications_artisan ON GIG_APPLICATIONS(Artisan_ID);
 -- ============================================================================
 CREATE TABLE COMPLETION_CONTRACTS (
   Contract_ID SERIAL PRIMARY KEY,
-  Gig_ID INTEGER NOT NULL,
+  Gig_ID INTEGER NOT NULL UNIQUE,
   Selected_Artisan_ID INTEGER NOT NULL,
   Final_Amount NUMERIC(10, 2) NOT NULL CHECK (Final_Amount > 0),
   Payment_Status VARCHAR(20) NOT NULL 
@@ -152,8 +156,8 @@ CREATE TABLE COMPLETION_CONTRACTS (
   FOREIGN KEY (Selected_Artisan_ID) REFERENCES ARTISANS(Artisan_ID) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-COMMENT ON TABLE COMPLETION_CONTRACTS IS 'Finalized contract for accepted bids. Records the final negotiated amount, payment status, and completion date. Source of truth for artisan earnings and payment verification logs.';
-COMMENT ON COLUMN COMPLETION_CONTRACTS.Payment_Status IS 'pending: awaiting payment; paid: transaction settled; disputed: payment contested (requires admin review).';
+COMMENT ON TABLE COMPLETION_CONTRACTS IS 'Contract for an accepted bid. Records the agreed amount, employer-entered payment status, and optional completion timestamp. It does not verify a money transfer.';
+COMMENT ON COLUMN COMPLETION_CONTRACTS.Payment_Status IS 'Employer-entered status: pending, paid, or disputed. No gateway confirmation or admin dispute workflow is implemented.';
 
 -- Index for fast "find contracts for artisan" queries
 CREATE INDEX idx_completion_contracts_artisan ON COMPLETION_CONTRACTS(Selected_Artisan_ID);

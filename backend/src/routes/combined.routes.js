@@ -4,7 +4,7 @@
 
 import express from 'express';
 import { getMyContracts, markPaymentSettled, confirmReceipt, getContractEvents } from '../controllers/contracts.controller.js';
-import { postReview, getArtisanReviews } from '../controllers/reviews.controller.js';
+import { postReview, getArtisanReviews, postEmployerReview, getEmployerReviews } from '../controllers/reviews.controller.js';
 import { getTopArtisans, getSkillEarnings, getOpenGigs } from '../controllers/dashboard.controller.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireRole } from '../middleware/requireRole.js';
@@ -34,6 +34,8 @@ router.post(
   postReview
 );
 router.get('/artisans/:id/reviews', getArtisanReviews);
+router.post('/contracts/:id/employer-review', authenticateToken, requireRole('artisan'), postEmployerReview);
+router.get('/employers/:id/reviews', getEmployerReviews);
 
 // ============================================================================
 // Dashboard Routes (Public)

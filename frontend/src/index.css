@@ -1876,6 +1876,20 @@ textarea:focus-visible {
   font-weight: 700;
   border-bottom: 1px solid currentColor;
 }
+.employer-feedback {
+  border-top: 1px solid #e5eae2;
+  padding-top: 14px;
+  margin-top: 14px;
+  font-size: 11px;
+}
+.employer-feedback p {
+  line-height: 1.5;
+  margin: 9px 0;
+  color: #536453;
+}
+.employer-feedback small {
+  color: #829082;
+}
 @media (max-width: 1000px) {
   .artisan-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

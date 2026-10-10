@@ -26,7 +26,7 @@ async function request(pathname, method = 'GET', body, token, expectedStatus = 2
 }
 
 try {
-  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql', '09_dbthon_workflow.sql']) {
+  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql', '09_dbthon_workflow.sql', '10_employer_reviews.sql']) {
     await db.exec(await readFile(path.join(databaseDir, file), 'utf8'));
   }
   socket = new PGLiteSocketServer({ db, host: '127.0.0.1', port: 5544 });
@@ -99,6 +99,7 @@ try {
   const contract = contracts.find(item => item.gig_id === gigId);
   assert.ok(contract);
   assert.equal(contract.payment_status, 'pending');
+  await request(`/contracts/${contract.contract_id}/employer-review`, 'POST', { ratingStars: 4 }, artisan.token, 409);
   await request(`/contracts/${contract.contract_id}/review`, 'POST', { ratingStars: 5 }, employer.token, 409);
   const sent = await request(`/contracts/${contract.contract_id}/pay`, 'PATCH', { paymentStatus: 'paid' }, employer.token);
   assert.equal(sent.contract.payment_status, 'pending');
@@ -113,8 +114,19 @@ try {
   assert.ok(events.some(event => event.event_type === 'receipt_confirmed'));
   await request(`/contracts/${contract.contract_id}/events`, 'GET', undefined, otherEmployer.token, 404);
   await request(`/contracts/${contract.contract_id}/review`, 'POST', { ratingStars: 5, feedbackText: 'Careful work and clear communication.' }, employer.token, 201);
+  const trustBeforeEmployerReview = Number((await db.query('SELECT Trust_Score FROM ARTISANS WHERE Artisan_ID = 1')).rows[0].trust_score);
+  await request(`/contracts/${contract.contract_id}/employer-review`, 'POST', { ratingStars: 4 }, employer.token, 403);
+  await request(`/contracts/${contract.contract_id}/employer-review`, 'POST', { ratingStars: 6 }, artisan.token, 400);
+  await request(`/contracts/${contract.contract_id}/employer-review`, 'POST', { ratingStars: 4, feedbackText: 'Clear brief and prompt payment.' }, artisan.token, 201);
+  await request(`/contracts/${contract.contract_id}/employer-review`, 'POST', { ratingStars: 3 }, artisan.token, 409);
+  await request(`/contracts/${contract.contract_id}/employer-review`, 'POST', { ratingStars: 5 }, newcomer.token, 404);
+  const employerReviews = await request(`/employers/${employer.user.userId}/reviews`);
+  assert.ok(employerReviews.some(review => review.feedback_text === 'Clear brief and prompt payment.'));
+  const trustAfterEmployerReview = await db.query('SELECT Trust_Score FROM ARTISANS WHERE Artisan_ID = 1');
+  assert.equal(Number(trustAfterEmployerReview.rows[0].trust_score), trustBeforeEmployerReview);
   const artisanContracts = await request('/contracts/mine', 'GET', undefined, artisan.token);
   assert.equal(artisanContracts.find(item => item.gig_id === gigId).rating_stars, 5);
+  assert.equal(artisanContracts.find(item => item.gig_id === gigId).employer_rating_stars, 4);
   const profile = await request('/artisans/1');
   assert.equal('phone' in profile, false);
   assert.equal('email' in profile, false);

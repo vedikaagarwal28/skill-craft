@@ -286,6 +286,7 @@ function normaliseContract(row) {
     address: row.address,
     createdAt: date(row.createdAt ?? row.created_at),
     rating: row.rating ?? row.rating_stars,
+    employerRating: row.employerRating ?? row.employer_rating_stars,
     partnerPhone: row.partnerPhone ?? row.partner_phone,
     employerPaidAt: row.employerPaidAt ?? row.employer_paid_at,
     artisanReceivedAt: row.artisanReceivedAt ?? row.artisan_received_at,
@@ -683,6 +684,45 @@ export async function reviewContract(contractId, ratingStars, feedbackText) {
   }
   const { data } = await api.post(`/contracts/${contractId}/review`, { ratingStars, feedbackText })
   return data.review
+}
+
+export async function reviewEmployer(contractId, ratingStars, feedbackText) {
+  if (demoMode) {
+    const state = getState()
+    const contract = state.contracts.find((item) => item.id === number(contractId))
+    if (!contract || contract.artisanId !== currentUser()?.id || contract.paymentStatus !== 'paid' || contract.employerRating)
+      throw new Error('This employer cannot be reviewed for this contract.')
+    contract.employerRating = ratingStars
+    contract.employerFeedback = feedbackText
+    saveState(state)
+    return contract
+  }
+  const { data } = await api.post(`/contracts/${contractId}/employer-review`, { ratingStars, feedbackText })
+  return data.review
+}
+
+export async function getEmployerReviews(id) {
+  if (demoMode) {
+    return getState().contracts
+      .filter((contract) => contract.employerId === number(id) && contract.employerRating)
+      .map((contract) => ({
+        id: contract.id,
+        stars: contract.employerRating,
+        text: contract.employerFeedback,
+        artisan: contract.artisanName,
+        skill: contract.skill,
+        date: contract.createdAt,
+      }))
+  }
+  const { data } = await api.get(`/employers/${id}/reviews`)
+  return data.map((row) => ({
+    id: row.review_id,
+    stars: Number(row.rating_stars),
+    text: row.feedback_text,
+    artisan: row.artisan_name,
+    skill: row.skill_required,
+    date: row.review_date,
+  }))
 }
 
 export const money = (amount) =>

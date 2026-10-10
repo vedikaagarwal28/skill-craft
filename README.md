@@ -16,6 +16,8 @@ SkillCraft stores those events as related records. Artisans search open work and
 
 The app does **not** transfer or independently verify money, hold escrow, resolve disputes, or prove that work was completed. “Paid” means both parties recorded the payment in the app for a new contract. Older paid sample contracts remain labeled legacy because they lack independent artisan confirmation. Its sample users and jobs are synthetic.
 
+Artisans can also rate an employer once per paid contract. These reviews appear on that employer's job pages and do not change the artisan's trust score. For an existing PostgreSQL database, apply [migration 10](database/10_employer_reviews.sql) before starting the updated API; fresh Docker and local preview databases load it automatically.
+
 ## DBTHON 2026 rubric: what to show
 
 **October 2026 update:** [Migration 09](database/09_dbthon_workflow.sql) adds a seventh table, `CONTRACT_EVENTS`, for append-only contract history; two-party payment acknowledgment for new contracts; indexed skill and location search with a transparent fit score; and row-level security under the restricted API database role. Previously paid seed rows remain labeled legacy because no artisan confirmation was recorded. Neither acknowledgment verifies a bank transfer. The [latest panel deck](docs/SkillCraft_DBTHON_2026_Panel.pptx) reflects this version.

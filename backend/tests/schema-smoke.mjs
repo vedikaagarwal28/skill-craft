@@ -10,7 +10,7 @@ const database = path.resolve(here, '../../database');
 const db = await PGlite.create();
 
 try {
-  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql', '09_dbthon_workflow.sql']) {
+  for (const file of ['01_schema.sql', '02_03_views_triggers_procedures.sql', '05_seed_data.sql', '06_proposal_note.sql', '08_unique_contracts.sql', '09_dbthon_workflow.sql', '10_employer_reviews.sql']) {
     await db.exec(await readFile(path.join(database, file), 'utf8'));
   }
 

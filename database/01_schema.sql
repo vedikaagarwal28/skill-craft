@@ -12,6 +12,7 @@
 -- ============================================================================
 
 -- Drop existing objects (safe for dev/testing; remove in production)
+DROP TABLE IF EXISTS EMPLOYER_REVIEWS CASCADE;
 DROP TABLE IF EXISTS RATINGS_REVIEWS CASCADE;
 DROP TABLE IF EXISTS COMPLETION_CONTRACTS CASCADE;
 DROP TABLE IF EXISTS GIG_APPLICATIONS CASCADE;

@@ -5,6 +5,7 @@ and is checked into the repository so this script needs no rendering service.
 """
 
 from pathlib import Path
+import re
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -16,6 +17,7 @@ from pptx.util import Inches, Pt
 ROOT = Path(__file__).parent
 OUTPUT = ROOT / "SkillCraft_DBTHON_2026_Panel.pptx"
 DIAGRAM = ROOT / "skillcraft-er-diagram.png"
+SPEAKER_SCRIPT = ROOT / "SkillCraft_DBTHON_2026_Speaker_Script.md"
 
 PAPER = RGBColor(248, 247, 242)
 WHITE = RGBColor(255, 255, 255)
@@ -102,8 +104,17 @@ def base(title, subtitle, section, n):
     return slide
 
 
-def notes(slide, message):
-    slide.notes_slide.notes_text_frame.text = message
+def add_speaker_notes():
+    source = SPEAKER_SCRIPT.read_text(encoding="utf-8")
+    sections = re.findall(
+        r"(?ms)^## Slide (\d+): [^\n]+\n\n(.*?)(?=^## Slide \d+: |\Z)", source
+    )
+    expected = list(range(1, len(prs.slides) + 1))
+    found = [int(number) for number, _ in sections]
+    if found != expected:
+        raise ValueError(f"Speaker script sections {found} do not match slides {expected}")
+    for slide, (_, script) in zip(prs.slides, sections):
+        slide.notes_slide.notes_text_frame.text = script.strip()
 
 
 # 1 — cover
@@ -121,7 +132,6 @@ for y, number, label in [(1.30, "01", "A job is posted"), (2.73, "02", "An artis
     rect(s, 9.05, y, 3.67, 1.06, WHITE, LINE, True)
     txt(s, number, 9.30, y + 0.21, 0.50, 0.42, 20, GREEN, True)
     txt(s, label, 9.93, y + 0.24, 2.45, 0.58, 17, INK, True)
-notes(s, "Open with one sentence: SkillCraft is a local-work marketplace whose main strength is the database record behind each job. Introduce the team.")
 
 # 2 — problem and domain
 s = base("The problem is missing work history", "Small jobs often live in calls and chat messages; decisions are hard to trace later.", "problem + domain · 4 marks", 2)
@@ -130,7 +140,6 @@ card(s, 4.78, 2.07, 3.77, 3.10, "SkillCraft: linked records", "The original job,
 card(s, 8.97, 2.07, 3.77, 3.10, "Who it serves", "Local artisans seeking visible opportunities, and employers comparing offers for short projects.", GREEN, WHITE, body_size=18)
 pill(s, "DOMAIN: LOCAL EMPLOYMENT", 0.62, 5.64, 2.73)
 txt(s, "SDG 8 alignment: access to decent work and a portable work record. Economic impact is a goal, not a measured result yet.", 3.64, 5.55, 8.55, 0.73, 17, MUTED)
-notes(s, "Explain the old approach first: informal messages do not create a dependable sequence. Then state the target users and SDG 8 connection. Do not claim proven earnings gains.")
 
 # 3 — workflow
 s = base("One job becomes one traceable agreement", "The same workflow is visible from two different accounts.", "working workflow", 3)
@@ -146,14 +155,12 @@ for i, (title, body) in enumerate(steps):
     x = 0.62 + (i % 3) * 4.23
     y = 2.02 + (i // 3) * 2.22
     card(s, x, y, 3.82, 1.83, title, body, GREEN if i not in (3, 4) else RUST, body_size=15)
-notes(s, "Use Ramesh and Lakshmi as the concrete example. Emphasize that accepting a bid creates exactly one contract and that paid status for a new contract needs both sides.")
 
 # 4 — role views
 s = base("Each account sees the work relevant to it", "The roles share the same underlying job and contract, but their menus and actions differ.", "prototype", 4)
 card(s, 0.70, 2.03, 5.76, 3.65, "EMPLOYER  /  RAMESH", "Hiring overview\nPost a job and inspect bids\nAccept or decline an offer\nRecord payment sent\nReview a paid contract", RUST, WARM, 20, 17)
 card(s, 6.87, 2.03, 5.76, 3.65, "ARTISAN  /  LAKSHMI", "My workspace\nFind work and submit a bid\nTrack bid status\nConfirm payment received\nSee agreements and reviews", GREEN, MINT, 20, 17)
 txt(s, "The API also checks the role and ownership; the database applies row-level rules for private bids, contracts and events.", 1.02, 6.15, 11.45, 0.47, 16, MUTED, align=PP_ALIGN.CENTER)
-notes(s, "Show the actual role navigation in the live prototype. Ramesh cannot use artisan bid actions; Lakshmi cannot post jobs or inspect someone else's bids.")
 
 # 5 — stack
 s = base("The database does the critical work", "A plain-language map of the technology stack.", "DBMS implementation · 5 marks", 5)
@@ -169,13 +176,11 @@ txt(s, "→", 4.38, 3.12, 0.46, 0.56, 29, GREEN, True)
 txt(s, "→", 8.55, 3.12, 0.46, 0.56, 29, GREEN, True)
 rect(s, 1.30, 5.22, 10.75, 0.81, WHITE, LINE, True)
 txt(s, "Local preview: PGlite runs the PostgreSQL-compatible schema. Docker configuration uses PostgreSQL 15.", 1.61, 5.46, 10.14, 0.34, 16, MUTED, align=PP_ALIGN.CENTER)
-notes(s, "React is the visible website. Express is the server API. PostgreSQL is the relational database that joins records and enforces integrity. PGlite is the local preview database, not a separate product design.")
 
 # 6 — ER diagram. Give the detailed model the whole slide so fields remain legible.
 s = prs.slides.add_slide(prs.slide_layouts[6])
 rect(s, 0, 0, 13.333, 7.5, PAPER)
 s.shapes.add_picture(str(DIAGRAM), Inches(0.10), Inches(0.10), width=Inches(13.13), height=Inches(7.30))
-notes(s, "Point to USERS, then GIG_POSTINGS, GIG_APPLICATIONS, COMPLETION_CONTRACTS, and finally RATINGS_REVIEWS plus CONTRACT_EVENTS. The accepted-bid trigger creates the contract; there is no direct bid-to-contract foreign key.")
 
 # 7 — integrity
 s = base("Rules protect the data when people act at once", "These protections are in SQL and transactions, not only in button logic.", "technical depth · 5 marks", 7)
@@ -187,7 +192,6 @@ cards = [
 ]
 for x, y, h, body in cards:
     card(s, x, y, 5.92, 1.74, h, body, GREEN, body_size=16)
-notes(s, "One of the strongest demonstrations is two attempts to accept different bids on the same job. Exactly one succeeds. Do not attribute the result to a single mechanism; the lock, transaction, trigger and unique constraint work together.")
 
 # 8 — innovation / novelty
 s = base("The innovation is a verifiable sequence of claims", "Conventional status flags say 'paid'; SkillCraft records who said what and when.", "innovation 4 + novelty 5", 8)
@@ -200,7 +204,6 @@ txt(s, "SKILLCRAFT NOW", 7.42, 2.28, 4.78, 0.36, 15, GREEN, True)
 txt(s, "Employer records sent.\nArtisan confirms received.", 7.42, 2.88, 4.86, 1.10, 25, INK, True)
 txt(s, "An append-only history records each event.", 7.42, 4.34, 4.80, 0.47, 17, MUTED)
 txt(s, "A review is allowed only after a new contract is paid. Older paid rows remain visibly legacy, not falsely backfilled.", 1.05, 5.66, 11.25, 0.75, 17, MUTED, align=PP_ALIGN.CENTER)
-notes(s, "This is the main novelty story. Acknowledgments are assertions by users, not bank verification. Explain why old paid rows are labelled legacy: the migration refuses to invent an artisan confirmation.")
 
 # 9 — contract-linked trust
 s = base("A review updates a careful trust score", "Only a paid contract can receive a review. A trigger refreshes the artisan's stored score.", "database function + trigger", 9)
@@ -210,7 +213,6 @@ txt(s, "(5 + 3 × 3.5) ÷ (1 + 3)  =  3.88", 1.08, 2.92, 11.09, 0.71, 29, INK, T
 card(s, 0.78, 4.62, 3.72, 1.43, "ELIGIBLE DATA", "Reviews tied to paid contracts.", GREEN, WHITE, 17, 15)
 card(s, 4.81, 4.62, 3.72, 1.43, "STABILIZING PRIOR", "Three virtual 3.5-star reviews.", RUST, WARM, 17, 15)
 card(s, 8.84, 4.62, 3.72, 1.43, "AUTOMATIC UPDATE", "Review insert runs the score function.", GREEN, WHITE, 17, 15)
-notes(s, "Explain the prior without jargon: one perfect review should not immediately make a new artisan look perfect. The stored score is recalculated by a database trigger after a real eligible review. This is a design choice, not a validated fairness guarantee.")
 
 # 10 — search + security
 s = base("Matching and privacy are database features", "The discovery screens are backed by indexed queries and restricted database access.", "implementation + differentiation", 10)
@@ -218,16 +220,14 @@ card(s, 0.73, 2.05, 3.77, 3.43, "SEARCH", "Jobs and artisans can be filtered by 
 card(s, 4.78, 2.05, 3.77, 3.43, "EXPLAINABLE FIT", "A simple 0–3 score prefers the same skill (2 points) and same city (1 point). It is inspectable, not an AI prediction.", RUST, WARM, 19, 17)
 card(s, 8.84, 2.05, 3.77, 3.43, "ROW SECURITY", "A restricted database role and row-level policies limit access to a person's private bids, contracts and events.", GREEN, MINT, 19, 17)
 txt(s, "Public artisan reputation appears through limited views; private account fields stay private.", 1.03, 6.00, 11.2, 0.45, 17, MUTED, align=PP_ALIGN.CENTER)
-notes(s, "Use the search screen to show a match label. Say the ranking is transparent, not AI. Explain row-level security in ordinary words: the database itself filters rows based on the signed-in user's identity.")
 
 # 11 — validation
 s = base("What we have actually validated", "Functional evidence is strong; performance and social impact still need measurement.", "validation · 3 marks", 11)
 card(s, 0.72, 2.01, 3.76, 2.94, "API + SCHEMA", "Checks the full job-to-review flow, foreign-key relationships, audit immutability, and ownership rules.", GREEN, WHITE, 19, 17)
 card(s, 4.78, 2.01, 3.76, 2.94, "24 JEST CASES", "20 CRUD cases plus 4 concurrency and integrity cases passed on fresh local PGlite databases.", GREEN, WHITE, 19, 17)
-card(s, 8.84, 2.01, 3.76, 2.94, "2 BROWSER FLOWS", "The two-role payment journey and long-text mobile layout passed in Edge.", GREEN, WHITE, 19, 17)
+card(s, 8.84, 2.01, 3.76, 2.94, "2 BROWSER FLOWS", "Visual demo mode checks interface flow and mobile layout; it does not exercise the live database.", GREEN, WHITE, 19, 17)
 rect(s, 1.22, 5.45, 10.89, 0.83, WARM, LINE, True)
 txt(s, "Next evidence: benchmark indexed search vs. a baseline on native PostgreSQL; measure fit quality with labeled examples.", 1.53, 5.65, 10.27, 0.42, 16, INK, align=PP_ALIGN.CENTER)
-notes(s, "Do not present test counts as a speed-up. These tests show behavior and integrity. Native PostgreSQL query-plan and ranking-quality comparisons are still planned.")
 
 # 12 — rubric 1–4
 s = base("What the panel grades · part 1", "The numbers are available marks, not a score awarded to this project.", "rubric / 30 marks", 12)
@@ -244,7 +244,6 @@ for i, (marks, title, body) in enumerate(rubric_a):
     txt(s, marks, 1.13, y + 0.28, 0.41, 0.31, 18, GREEN, True, align=PP_ALIGN.CENTER)
     txt(s, title, 1.98, y + 0.17, 3.01, 0.42, 19, INK, True)
     txt(s, body, 5.13, y + 0.17, 7.03, 0.63, 15, MUTED)
-notes(s, "Tie every rubric criterion to one visible artifact. State that these are maximum marks allocated by the challenge PDF, not an estimated grade.")
 
 # 13 — rubric 5–8
 s = base("What the panel grades · part 2", "The claim and the evidence should stay at the same level.", "rubric / 30 marks", 13)
@@ -261,10 +260,9 @@ for i, (marks, title, body) in enumerate(rubric_b):
     txt(s, marks, 1.13, y + 0.28, 0.41, 0.31, 18, GREEN, True, align=PP_ALIGN.CENTER)
     txt(s, title, 1.98, y + 0.17, 3.01, 0.42, 19, INK, True)
     txt(s, body, 5.13, y + 0.17, 7.03, 0.63, 15, MUTED)
-notes(s, "The last two criteria are easy to overstate. Describe SDG alignment as an intention; describe TRL as a working prototype rather than a deployed or field-tested system.")
 
 # 14 — demo guide
-s = base("A five-minute live demonstration", "Use the connected local preview, not the browser-only demo mode.", "panel runbook", 14)
+s = base("A five-step connected demonstration", "Use the local API and database preview to show each change as it happens.", "panel runbook", 14)
 demo = [
     ("1", "Ramesh posts", "ramesh@constructionco.in"),
     ("2", "Lakshmi searches + bids", "lakshmi@skillcraft.local"),
@@ -279,14 +277,19 @@ for i, (number, heading, body) in enumerate(demo):
     txt(s, heading, 1.65, y + 0.14, 4.20, 0.39, 18, INK, True)
     txt(s, body, 6.00, y + 0.16, 5.97, 0.41, 15, MUTED)
 pill(s, "BOTH PASSWORDS: password123", 0.76, 6.62, 3.14)
-notes(s, "Prepare a fresh job before the demo and use its distinctive description to search. Avoid posting a new bid on a previously bid job. Both accounts use password123 in the local seeded preview.")
 
-# 15 — limits / closing
-s = base("A working prototype with clear next measurements", "The database is the product's backbone; our claims stop where the evidence stops.", "conclusion", 15)
+# 15 — likely questions
+s = base("Three questions the panel may ask", "Answer with the implemented rule, then state the remaining evidence gap.", "panel questions", 15)
+card(s, 0.72, 2.04, 3.76, 3.55, "TWO WINNERS?", "A transaction, row lock, trigger and unique contract rule allow one winner per job. Native server concurrency still needs a run.", GREEN, WHITE, 19, 16)
+card(s, 4.78, 2.04, 3.76, 3.55, "PAYMENT VERIFIED?", "No. Paid records two user acknowledgments. There is no bank integration, escrow or independent confirmation.", RUST, WARM, 19, 16)
+card(s, 8.84, 2.04, 3.76, 3.55, "FASTER OR FAIRER?", "Not yet measured. Define a baseline, repeat query tests on PostgreSQL, and assess fit against labeled examples.", GREEN, MINT, 19, 16)
+txt(s, "A precise answer is stronger than a performance or impact number we cannot support.", 1.06, 6.05, 11.20, 0.44, 17, MUTED, align=PP_ALIGN.CENTER)
+
+# 16 — limits / closing
+s = base("A working prototype with clear next measurements", "The database is the product's backbone; our claims stop where the evidence stops.", "conclusion", 16)
 card(s, 0.77, 2.08, 5.66, 3.20, "WHAT WORKS NOW", "Connected two-role website\nSeven-table relational model\nOne-winner bid acceptance\nTwo-party payment record\nContract-linked trust and audit history", GREEN, MINT, 19, 17)
 card(s, 6.88, 2.08, 5.66, 3.20, "WHAT WE WILL MEASURE NEXT", "Native PostgreSQL query latency\nMatching quality on labeled jobs\nSecurity checks on a native server\nUser outcomes in a real pilot", RUST, WARM, 19, 17)
 txt(s, "SkillCraft records payment claims. It does not send money, verify banks, or prove an earnings uplift.", 1.18, 5.81, 11.00, 0.58, 17, MUTED, align=PP_ALIGN.CENTER)
-notes(s, "Close by restating the database contribution. Invite questions. If asked about payment, distinguish acknowledgment from real bank verification. If asked about performance, explain the planned benchmark rather than inventing a result.")
-
+add_speaker_notes()
 prs.save(OUTPUT)
 print(f"Wrote {OUTPUT} ({len(prs.slides)} slides)")

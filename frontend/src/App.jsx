@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BrowserRouter,
+  HashRouter,
   Link,
   NavLink,
   Navigate,
@@ -31,6 +32,7 @@ import {
   demoMode,
   getArtisan,
   getArtisanReviews,
+  getEmployerReviews,
   getContracts,
   getContractEvents,
   getGig,
@@ -43,6 +45,7 @@ import {
   postGig,
   register,
   reviewContract,
+  reviewEmployer,
   shortDate,
   signIn,
   signOut,
@@ -717,6 +720,7 @@ function Detail({ user }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const { data, error, loading, refresh } = useData(() => getGig(id), [id])
+  const employerReviews = useData(() => data?.gig?.employerId ? getEmployerReviews(data.gig.employerId) : Promise.resolve([]), [data?.gig?.employerId])
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [message, setMessage] = useState('')
@@ -886,8 +890,19 @@ function Detail({ user }) {
               <div>
                 <small>Posted by</small>
                 <strong>{gig.employerName}</strong>
+                {employerReviews.data?.length > 0 && (
+                  <small>{(employerReviews.data.reduce((sum, review) => sum + review.stars, 0) / employerReviews.data.length).toFixed(1)} ★ from {employerReviews.data.length} artisan {employerReviews.data.length === 1 ? 'review' : 'reviews'}</small>
+                )}
               </div>
             </div>
+            {employerReviews.data?.length > 0 && (
+              <div className="employer-feedback">
+                <strong>What artisans say</strong>
+                {employerReviews.data.slice(0, 2).map((review) => (
+                  <p key={review.id}>{'★'.repeat(review.stars)} {review.text || 'Employer reviewed.'} <small>— {review.artisan}</small></p>
+                ))}
+              </div>
+            )}
             <div className="side-divider" />
             {user?.role === 'artisan' && gig.status === 'open' && !alreadyBid && (
               <form className="bid-form" onSubmit={bid}>
@@ -1519,9 +1534,9 @@ function Contracts({ user }) {
     setMessage('')
     const form = new FormData(event.currentTarget)
     try {
-      await reviewContract(reviewId, Number(form.get('ratingStars')), form.get('feedbackText'))
+      await (user.role === 'artisan' ? reviewEmployer : reviewContract)(reviewId, Number(form.get('ratingStars')), form.get('feedbackText'))
       setReviewId(null)
-      setMessage('Review saved. Thank you for recognising good work.')
+      setMessage(user.role === 'artisan' ? 'Review saved. Thank you for sharing your experience.' : 'Review saved. Thank you for recognising good work.')
       await refresh()
     } catch (error) {
       setMessage(messageFrom(error))
@@ -1602,6 +1617,15 @@ function Contracts({ user }) {
               {user.role === 'artisan' && contract.paymentStatus === 'pending' && contract.employerPaidAt && (
                 <div className="contract-actions"><Button disabled={busy} onClick={() => receive(contract.id)}>Confirm receipt <Check size={16} /></Button></div>
               )}
+              {user.role === 'artisan' && contract.paymentStatus === 'paid' && (
+                <div className="contract-actions">
+                  {contract.employerRating ? (
+                    <span className="rating">{'★'.repeat(Number(contract.employerRating))} <small>Your employer review</small></span>
+                  ) : (
+                    <Button variant="outline" onClick={() => setReviewId(contract.id)}>Rate employer <ArrowRight size={16} /></Button>
+                  )}
+                </div>
+              )}
               <button className="history-toggle" onClick={() => showHistory(contract.id)}>{history[contract.id] ? 'Hide activity' : 'View activity'}</button>
               {history[contract.id] && <ol className="contract-history">{history[contract.id].map((event) => <li key={event.event_id || `${event.event_type}-${event.created_at}`}><span>{event.event_type.replaceAll('_', ' ')}</span><small>{shortDate(event.created_at)}</small></li>)}</ol>}
             </article>
@@ -1633,9 +1657,9 @@ function Contracts({ user }) {
             <button className="modal-close" aria-label="Close" onClick={() => setReviewId(null)}>
               <X size={20} />
             </button>
-            <span className="eyebrow">RECOGNISE GOOD WORK</span>
-            <h2 id="review-title">Leave a review</h2>
-            <p>Your feedback contributes to the artisan’s contract-linked work record.</p>
+            <span className="eyebrow">SHARE YOUR EXPERIENCE</span>
+            <h2 id="review-title">{user.role === 'artisan' ? 'Rate your employer' : 'Leave a review'}</h2>
+            <p>{user.role === 'artisan' ? 'Your feedback helps other artisans know what working with this employer is like.' : 'Your feedback contributes to the artisan’s contract-linked work record.'}</p>
             <form onSubmit={review}>
               <label>
                 Rating
@@ -1756,9 +1780,10 @@ function Shell() {
   )
 }
 export default function App() {
+  const Router = demoMode ? HashRouter : BrowserRouter
   return (
-    <BrowserRouter>
+    <Router>
       <Shell />
-    </BrowserRouter>
+    </Router>
   )
 }

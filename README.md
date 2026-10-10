@@ -16,6 +16,8 @@ SkillCraft stores those events as related records. Artisans search open work and
 
 The app does **not** transfer or independently verify money, hold escrow, resolve disputes, or prove that work was completed. “Paid” means both parties recorded the payment in the app for a new contract. Older paid sample contracts remain labeled legacy because they lack independent artisan confirmation. Its sample users and jobs are synthetic.
 
+Artisans can also rate an employer once per paid contract. These reviews appear on that employer's job pages and do not change the artisan's trust score. For an existing PostgreSQL database, apply [migration 10](database/10_employer_reviews.sql) before starting the updated API; fresh Docker and local preview databases load it automatically.
+
 ## DBTHON 2026 rubric: what to show
 
 **October 2026 update:** [Migration 09](database/09_dbthon_workflow.sql) adds a seventh table, `CONTRACT_EVENTS`, for append-only contract history; two-party payment acknowledgment for new contracts; indexed skill and location search with a transparent fit score; and row-level security under the restricted API database role. Previously paid seed rows remain labeled legacy because no artisan confirmation was recorded. Neither acknowledgment verifies a bank transfer. The [latest panel deck](docs/SkillCraft_DBTHON_2026_Panel.pptx) reflects this version.
@@ -98,7 +100,7 @@ Open **http://127.0.0.1:5174**. The preview database listens on port 5433 and st
 | Artisan | `lakshmi@skillcraft.local` | Find work, send bids, track agreements |
 | Employer | `ramesh@constructionco.in` | Post jobs, compare bids, record hires and payment status |
 
-The frontend also has an optional browser-only visual demo with `VITE_DEMO_MODE=true`. It does **not** use the backend database and should not be used for the DBMS demonstration.
+The frontend also has a [public interactive preview](https://anuj-deshpande.github.io/skillcraft-bcse302p-demo/) hosted on GitHub Pages. Use the sign-in page's role buttons to try both sides, or open the [clean-start link](https://anuj-deshpande.github.io/skillcraft-bcse302p-demo/?reset=1#/) before recording. This build uses `VITE_DEMO_MODE=true` and stores sample actions in the visitor's browser. It does **not** use the backend database and should not be used as evidence of the DBMS implementation; use the connected local prototype above for that part.
 
 The repository also has a Docker Compose setup for PostgreSQL on port 5432, the API on 5000, and the frontend on 5173. Its fresh-volume initialization includes the v2 migrations. Existing PostgreSQL databases need the non-destructive [proposal-note](database/06_proposal_note.sql), [unique-contract](database/08_unique_contracts.sql), and [DBTHON workflow](database/09_dbthon_workflow.sql) migrations in that order. Review duplicate contracts manually if the unique constraint cannot be added. Do not run the destructive `01_schema.sql` against existing data.
 

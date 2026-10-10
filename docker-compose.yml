@@ -19,6 +19,7 @@ services:
       - ./database/06_proposal_note.sql:/docker-entrypoint-initdb.d/06_proposal_note.sql
       - ./database/08_unique_contracts.sql:/docker-entrypoint-initdb.d/08_unique_contracts.sql
       - ./database/09_dbthon_workflow.sql:/docker-entrypoint-initdb.d/09_dbthon_workflow.sql
+      - ./database/10_employer_reviews.sql:/docker-entrypoint-initdb.d/10_employer_reviews.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U skillcraft_user -d skillcraft"]
       interval: 10s

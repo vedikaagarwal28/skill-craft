@@ -38,12 +38,14 @@ export const getMyContracts = async (req, res) => {
         u.full_name as employer_name,
         contract_partner_phone(u.user_id) as partner_phone,
         rr.rating_stars,
-        rr.feedback_text
+        rr.feedback_text,
+        er.rating_stars AS employer_rating_stars
        FROM COMPLETION_CONTRACTS cc
        JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
        JOIN USERS u ON gp.employer_user_id = u.user_id
        JOIN ARTISANS a ON cc.selected_artisan_id = a.artisan_id
        LEFT JOIN RATINGS_REVIEWS rr ON rr.contract_id = cc.contract_id
+       LEFT JOIN EMPLOYER_REVIEWS er ON er.contract_id = cc.contract_id
        WHERE a.user_id = $1
        ORDER BY cc.created_at DESC`;
     } else if (req.user.role === 'employer') {
@@ -65,12 +67,14 @@ export const getMyContracts = async (req, res) => {
         contract_partner_phone(u.user_id) as partner_phone,
         a.trust_score,
         rr.rating_stars,
-        rr.review_date
+        rr.review_date,
+        er.rating_stars AS employer_rating_stars
        FROM COMPLETION_CONTRACTS cc
        JOIN GIG_POSTINGS gp ON cc.gig_id = gp.gig_id
        JOIN ARTISANS a ON cc.selected_artisan_id = a.artisan_id
        JOIN USERS u ON a.user_id = u.user_id
        LEFT JOIN RATINGS_REVIEWS rr ON rr.contract_id = cc.contract_id
+       LEFT JOIN EMPLOYER_REVIEWS er ON er.contract_id = cc.contract_id
        WHERE gp.employer_user_id = $1
        ORDER BY cc.created_at DESC`;
     } else if (req.user.role === 'admin') {

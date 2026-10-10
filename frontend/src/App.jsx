@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BrowserRouter,
+  HashRouter,
   Link,
   NavLink,
   Navigate,
@@ -1779,9 +1780,10 @@ function Shell() {
   )
 }
 export default function App() {
+  const Router = demoMode ? HashRouter : BrowserRouter
   return (
-    <BrowserRouter>
+    <Router>
       <Shell />
-    </BrowserRouter>
+    </Router>
   )
 }

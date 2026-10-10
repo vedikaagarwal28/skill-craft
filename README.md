@@ -100,7 +100,7 @@ Open **http://127.0.0.1:5174**. The preview database listens on port 5433 and st
 | Artisan | `lakshmi@skillcraft.local` | Find work, send bids, track agreements |
 | Employer | `ramesh@constructionco.in` | Post jobs, compare bids, record hires and payment status |
 
-The frontend also has an optional browser-only visual demo with `VITE_DEMO_MODE=true`. It does **not** use the backend database and should not be used for the DBMS demonstration.
+The frontend also has a [public interactive preview](https://anuj-deshpande.github.io/skillcraft-bcse302p-demo/) hosted on GitHub Pages. Use the sign-in page's role buttons to try both sides, or open the [clean-start link](https://anuj-deshpande.github.io/skillcraft-bcse302p-demo/?reset=1#/) before recording. This build uses `VITE_DEMO_MODE=true` and stores sample actions in the visitor's browser. It does **not** use the backend database and should not be used as evidence of the DBMS implementation; use the connected local prototype above for that part.
 
 The repository also has a Docker Compose setup for PostgreSQL on port 5432, the API on 5000, and the frontend on 5173. Its fresh-volume initialization includes the v2 migrations. Existing PostgreSQL databases need the non-destructive [proposal-note](database/06_proposal_note.sql), [unique-contract](database/08_unique_contracts.sql), and [DBTHON workflow](database/09_dbthon_workflow.sql) migrations in that order. Review duplicate contracts manually if the unique constraint cannot be added. Do not run the destructive `01_schema.sql` against existing data.
 

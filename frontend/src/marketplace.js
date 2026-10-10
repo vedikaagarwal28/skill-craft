@@ -8,6 +8,13 @@ const stateKey = 'skillcraft-v2-demo-state'
 const userKey = 'skillcraft-v2-user'
 const tokenKey = 'skillcraft-v2-token'
 
+if (demoMode && new URLSearchParams(window.location.search).get('reset') === '1') {
+  localStorage.removeItem(stateKey)
+  localStorage.removeItem(userKey)
+  localStorage.removeItem(tokenKey)
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash || '#/'}`)
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(tokenKey)
   if (token) config.headers.Authorization = `Bearer ${token}`
